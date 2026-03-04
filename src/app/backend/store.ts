@@ -389,14 +389,18 @@ export function processRegistration(requestId: number, action: 'approve' | 'reje
     if (!req || req.status !== 'pending') return prev;
     const current = getCurrentUser() ?? prev.users.find((u) => u.role === 'curator')!;
 
-    const registrations = prev.registrations.map((r) => (r.id === requestId ? { ...r, status: action === 'approve' ? 'approved' : 'rejected', comment } : r));
+    const registrations: RegistrationRequest[] = prev.registrations.map((r) =>
+      r.id === requestId
+        ? { ...r, status: action === 'approve' ? 'approved' as const : 'rejected' as const, comment }
+        : r
+    );
     const draft: BackendState = { ...prev, registrations };
 
     if (action === 'approve') {
       if (prev.users.some((u) => u.login.toLowerCase() === req.login.toLowerCase())) {
-        const withConflict = prev.registrations.map((r) =>
+        const withConflict: RegistrationRequest[] = prev.registrations.map((r) =>
           r.id === requestId
-            ? { ...r, status: 'rejected', comment: 'Логин уже занят, регистрация отклонена автоматически.' }
+            ? { ...r, status: 'rejected' as const, comment: 'Логин уже занят, регистрация отклонена автоматически.' }
             : r
         );
         return { ...prev, registrations: withConflict };
@@ -521,12 +525,12 @@ export function processAchievement(achievementId: number, action: 'approve' | 'r
     if (!ach || ach.status !== 'pending') return prev;
     const actor = getCurrentUser() ?? prev.users.find((u) => u.role === 'curator')!;
 
-    const updated = prev.achievements.map((a) => {
+    const updated: AchievementRecord[] = prev.achievements.map((a) => {
       if (a.id !== achievementId) return a;
       const nextHistoryId = nextId(a.history);
       return {
         ...a,
-        status: action === 'approve' ? 'approved' : 'rejected',
+        status: action === 'approve' ? 'approved' as const : 'rejected' as const,
         comment,
         history: [...a.history, { id: nextHistoryId, action: action === 'approve' ? 'approved' : 'rejected', user: shortName(actor.name), userRole: 'Куратор', timestamp: now(), comment }],
       };
@@ -654,7 +658,7 @@ export function addSectionApplication(payload: Omit<SectionApplicationRecord, 'i
       ...prev,
       sectionApplications: [
         ...prev.sectionApplications,
-        { ...payload, id: `app-${Date.now()}`, status: 'pending', date: now().split(',')[0] },
+        { ...payload, id: `app-${Date.now()}`, status: 'pending' as const, date: now().split(',')[0] },
       ],
     };
     added = true;
@@ -673,7 +677,9 @@ export function updateSectionApplicationStatus(appId: string, status: 'approved'
   let result: OperationResult = { ok: true };
   mutate((prev) => {
     const app = prev.sectionApplications.find((a) => a.id === appId);
-    const updatedApps = prev.sectionApplications.map((a) => (a.id === appId ? { ...a, status } : a));
+    const updatedApps: SectionApplicationRecord[] = prev.sectionApplications.map((a) =>
+      a.id === appId ? { ...a, status } : a
+    );
     const actor = getCurrentUser() ?? prev.users.find((u) => u.role === 'curator') ?? prev.users[0];
 
     if (!app) {
