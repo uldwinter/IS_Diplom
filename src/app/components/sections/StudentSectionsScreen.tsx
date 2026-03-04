@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/ta
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
 import { Calendar, Users, Clock, MapPin, CheckCircle, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getCurrentUser } from '@/app/backend/store';
 
 export function StudentSectionsScreen() {
   const { sections, applications, getStudentSections, addApplication } = useSections();
@@ -14,10 +15,10 @@ export function StudentSectionsScreen() {
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Mock logged-in student
-  const currentStudentId = 1;
-  const currentStudentName = 'Иванов Иван';
-  const currentStudentClass = '10-1';
+  const currentStudent = getCurrentUser();
+  const currentStudentId = currentStudent?.id ?? 0;
+  const currentStudentName = currentStudent?.name ?? 'Ученик';
+  const currentStudentClass = currentStudent?.class ?? '—';
 
   const mySections = getStudentSections(currentStudentId);
   const myApplications = applications.filter(app => app.studentId === currentStudentId);
@@ -37,14 +38,23 @@ export function StudentSectionsScreen() {
 
   const handleApply = () => {
     if (!selectedSection) return;
+    if (!currentStudentId) {
+      toast.error('Не удалось определить текущего пользователя');
+      return;
+    }
     
-    addApplication({
+    const result = addApplication({
       studentId: currentStudentId,
       studentName: currentStudentName,
       studentClass: currentStudentClass,
       sectionId: selectedSection.id,
     });
-    
+
+    if (!result.ok) {
+      toast.error(result.message ?? 'Не удалось отправить заявку');
+      return;
+    }
+
     toast.success(`Заявка в секцию "${selectedSection.name}" отправлена`);
     setIsDialogOpen(false);
   };

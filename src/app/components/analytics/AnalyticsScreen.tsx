@@ -1,384 +1,74 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Users, Award, BarChart3 } from 'lucide-react';
-
-// Данные для графиков
-const monthlyAchievementsData = [
-  { month: 'Сен', count: 45, points: 1250 },
-  { month: 'Окт', count: 52, points: 1420 },
-  { month: 'Ноя', count: 61, points: 1680 },
-  { month: 'Дек', count: 48, points: 1350 },
-  { month: 'Янв', count: 73, points: 2100 },
-];
-
-const categoryDistribution = [
-  { name: 'Учебные достижения', value: 45, color: '#3b82f6' },
-  { name: 'Внеурочная деятельность', value: 30, color: '#10b981' },
-  { name: 'Проектная деятельность', value: 15, color: '#8b5cf6' },
-  { name: 'Спортивные достижения', value: 10, color: '#f59e0b' },
-];
-
-const classComparisonData = [
-  { class: '9-1', students: 28, avgPoints: 185, totalPoints: 5180 },
-  { class: '9-2', students: 25, avgPoints: 172, totalPoints: 4300 },
-  { class: '9-3', students: 27, avgPoints: 168, totalPoints: 4536 },
-  { class: '10-1', students: 26, avgPoints: 201, totalPoints: 5226 },
-  { class: '10-2', students: 24, avgPoints: 189, totalPoints: 4536 },
-  { class: '10-3', students: 25, avgPoints: 178, totalPoints: 4450 },
-];
-
-const topStudentsData = [
-  { name: 'Иванов И.И.', class: '10-1', points: 267, achievements: 12 },
-  { name: 'Петрова М.С.', class: '10-1', points: 255, achievements: 11 },
-  { name: 'Соловьева О.Д.', class: '9-1', points: 245, achievements: 10 },
-  { name: 'Кузнецова Т.А.', class: '10-1', points: 241, achievements: 10 },
-  { name: 'Новиков Д.А.', class: '9-3', points: 232, achievements: 9 },
-  { name: 'Сидоров А.П.', class: '10-2', points: 228, achievements: 9 },
-  { name: 'Михайлов А.С.', class: '9-1', points: 218, achievements: 8 },
-  { name: 'Волков С.Н.', class: '10-3', points: 215, achievements: 8 },
-];
-
-const approvalRateData = [
-  { month: 'Сентябрь', approved: 42, rejected: 3 },
-  { month: 'Октябрь', approved: 48, rejected: 4 },
-  { month: 'Ноябрь', approved: 57, rejected: 4 },
-  { month: 'Декабрь', approved: 45, rejected: 3 },
-  { month: 'Январь', approved: 68, rejected: 5 },
-];
+import { useBackendState } from '@/app/backend/store';
 
 export function AnalyticsScreen() {
+  const { users, achievements } = useBackendState();
+
+  const analytics = useMemo(() => {
+    const students = users.filter((u) => u.role === 'student');
+    const approved = achievements.filter((a) => a.status === 'approved');
+    const rejected = achievements.filter((a) => a.status === 'rejected');
+
+    const totalPoints = approved.reduce((sum, a) => sum + a.expectedPoints, 0);
+    const avgPoints = students.length ? Math.round(totalPoints / students.length) : 0;
+    const approvalRate = achievements.length ? Math.round((approved.length / achievements.length) * 100) : 0;
+
+    const categoryMap = new Map<string, number>();
+    achievements.forEach((a) => categoryMap.set(a.category, (categoryMap.get(a.category) ?? 0) + 1));
+    const categoryDistribution = Array.from(categoryMap.entries()).map(([name, value], idx) => ({ name, value, color: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b'][idx % 4] }));
+
+    const classMap = new Map<string, { students: number; totalPoints: number }>();
+    students.forEach((s) => classMap.set(s.class ?? '—', { students: (classMap.get(s.class ?? '—')?.students ?? 0) + 1, totalPoints: classMap.get(s.class ?? '—')?.totalPoints ?? 0 }));
+    approved.forEach((a) => {
+      const cur = classMap.get(a.studentClass) ?? { students: 0, totalPoints: 0 };
+      classMap.set(a.studentClass, { ...cur, totalPoints: cur.totalPoints + a.expectedPoints });
+    });
+
+    const classComparisonData = Array.from(classMap.entries()).map(([cls, v]) => ({ class: cls, students: v.students, avgPoints: v.students ? Math.round(v.totalPoints / v.students) : 0, totalPoints: v.totalPoints }));
+
+    const monthly = new Map<string, { count: number; points: number }>();
+    achievements.forEach((a) => {
+      const k = a.submittedDate || a.date;
+      const cur = monthly.get(k) ?? { count: 0, points: 0 };
+      monthly.set(k, { count: cur.count + 1, points: cur.points + (a.status === 'approved' ? a.expectedPoints : 0) });
+    });
+    const monthlyAchievementsData = Array.from(monthly.entries()).slice(-8).map(([month, v]) => ({ month, count: v.count, points: v.points }));
+
+    const approvalRateData = [{ month: 'Текущий', approved: approved.length, rejected: rejected.length }];
+
+    const topStudentsData = students
+      .map((s) => ({
+        name: s.name,
+        class: s.class ?? '—',
+        points: approved.filter((a) => a.studentUserId === s.id).reduce((sum, a) => sum + a.expectedPoints, 0),
+        achievements: approved.filter((a) => a.studentUserId === s.id).length,
+      }))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 10);
+
+    return { studentsCount: students.length, achievementsCount: achievements.length, avgPoints, approvalRate, monthlyAchievementsData, categoryDistribution, classComparisonData, topStudentsData, approvalRateData };
+  }, [users, achievements]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl text-gray-900 mb-2">Аналитика и статистика</h2>
-          <p className="text-gray-600">Визуализация данных и метрики системы</p>
-        </div>
-        <Select defaultValue="current">
-          <SelectTrigger className="w-48 bg-white">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="current">Текущий год</SelectItem>
-            <SelectItem value="q1">1 четверть</SelectItem>
-            <SelectItem value="q2">2 четверть</SelectItem>
-            <SelectItem value="q3">3 четверть</SelectItem>
-            <SelectItem value="q4">4 четверть</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <div><h2 className="text-2xl text-gray-900 mb-2">Аналитика и статистика</h2><p className="text-gray-600">Автоматически рассчитанные показатели системы</p></div>
 
-      {/* Ключевые показатели */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Всего достижений</p>
-                <p className="text-3xl font-semibold text-gray-900">279</p>
-                <p className="text-xs text-green-600 mt-1">↑ 18% за месяц</p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Award className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Активных учеников</p>
-                <p className="text-3xl font-semibold text-gray-900">155</p>
-                <p className="text-xs text-green-600 mt-1">↑ 12% за месяц</p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Средний балл</p>
-                <p className="text-3xl font-semibold text-gray-900">182</p>
-                <p className="text-xs text-green-600 mt-1">↑ 5% за месяц</p>
-              </div>
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">% одобрения</p>
-                <p className="text-3xl font-semibold text-gray-900">93%</p>
-                <p className="text-xs text-gray-500 mt-1">260 из 279</p>
-              </div>
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <BarChart3 className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {[{ label: 'Всего достижений', value: analytics.achievementsCount, icon: Award, color: 'bg-blue-50 text-blue-600' }, { label: 'Активных учеников', value: analytics.studentsCount, icon: Users, color: 'bg-green-50 text-green-600' }, { label: 'Средний балл', value: analytics.avgPoints, icon: TrendingUp, color: 'bg-purple-50 text-purple-600' }, { label: '% одобрения', value: `${analytics.approvalRate}%`, icon: BarChart3, color: 'bg-orange-50 text-orange-600' }].map((s) => <Card key={s.label}><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-600 mb-1">{s.label}</p><p className="text-3xl font-semibold text-gray-900">{s.value}</p></div><div className={`p-3 rounded-lg ${s.color}`}><s.icon className="w-6 h-6" /></div></div></CardContent></Card>)}
       </div>
 
-      <Tabs defaultValue="dynamics" className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-gray-100">
-          <TabsTrigger value="dynamics">Динамика</TabsTrigger>
-          <TabsTrigger value="distribution">Распределение</TabsTrigger>
-          <TabsTrigger value="classes">Классы</TabsTrigger>
-          <TabsTrigger value="top">Топ учеников</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card><CardHeader><CardTitle>Динамика заявок</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={280}><LineChart data={analytics.monthlyAchievementsData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" /><YAxis /><Tooltip /><Legend /><Line type="monotone" dataKey="count" name="Кол-во" stroke="#3b82f6" /><Line type="monotone" dataKey="points" name="Баллы" stroke="#10b981" /></LineChart></ResponsiveContainer></CardContent></Card>
+        <Card><CardHeader><CardTitle>Распределение по категориям</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={280}><PieChart><Pie data={analytics.categoryDistribution} dataKey="value" nameKey="name" outerRadius={100} label>{analytics.categoryDistribution.map((e) => <Cell key={e.name} fill={e.color} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></CardContent></Card>
+      </div>
 
-        {/* Динамика достижений */}
-        <TabsContent value="dynamics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Динамика достижений по месяцам</CardTitle>
-                <CardDescription>Количество зарегистрированных достижений</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={monthlyAchievementsData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    />
-                    <Legend />
-                    <Bar dataKey="count" name="Количество" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Динамика баллов по месяцам</CardTitle>
-                <CardDescription>Общее количество начисленных баллов</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyAchievementsData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="points" 
-                      name="Баллы" 
-                      stroke="#10b981" 
-                      strokeWidth={3}
-                      dot={{ fill: '#10b981', r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Статистика модерации</CardTitle>
-              <CardDescription>Одобренные и отклоненные заявки по месяцам</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={approvalRateData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="month" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                  />
-                  <Legend />
-                  <Bar dataKey="approved" name="Одобрено" fill="#10b981" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="rejected" name="Отклонено" fill="#ef4444" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Распределение по категориям */}
-        <TabsContent value="distribution" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Распределение по категориям</CardTitle>
-                <CardDescription>Процентное соотношение достижений</CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-center">
-                <ResponsiveContainer width="100%" height={400}>
-                  <PieChart>
-                    <Pie
-                      data={categoryDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoryDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Детальная статистика по категориям</CardTitle>
-                <CardDescription>Количество достижений в каждой категории</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {categoryDistribution.map((category, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: category.color }}
-                          />
-                          <span className="font-medium text-gray-900">{category.name}</span>
-                        </div>
-                        <span className="text-gray-600">{category.value} достижений</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full transition-all"
-                          style={{
-                            width: `${category.value}%`,
-                            backgroundColor: category.color,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Сравнение классов */}
-        <TabsContent value="classes" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Сравнение классов</CardTitle>
-              <CardDescription>Средний балл учащихся по классам</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={classComparisonData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" stroke="#6b7280" />
-                  <YAxis dataKey="class" type="category" stroke="#6b7280" />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                  />
-                  <Legend />
-                  <Bar dataKey="avgPoints" name="Средний балл" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {classComparisonData.map((classData, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-1">{classData.class}</h3>
-                    <p className="text-sm text-gray-600 mb-4">{classData.students} учеников</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Средний балл:</span>
-                        <span className="font-semibold text-gray-900">{classData.avgPoints}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Всего баллов:</span>
-                        <span className="font-semibold text-blue-700">{classData.totalPoints}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* Топ учеников */}
-        <TabsContent value="top" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Топ-10 учеников по баллам</CardTitle>
-              <CardDescription>Лидеры по количеству баллов в текущем учебном году</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {topStudentsData.map((student, index) => (
-                  <div 
-                    key={index} 
-                    className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all hover:shadow-md ${
-                      index === 0 
-                        ? 'bg-yellow-50 border-yellow-200' 
-                        : index === 1 
-                        ? 'bg-gray-50 border-gray-200' 
-                        : index === 2 
-                        ? 'bg-orange-50 border-orange-200' 
-                        : 'bg-white border-gray-200'
-                    }`}
-                  >
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg ${
-                      index === 0 
-                        ? 'bg-yellow-500 text-white' 
-                        : index === 1 
-                        ? 'bg-gray-400 text-white' 
-                        : index === 2 
-                        ? 'bg-orange-500 text-white' 
-                        : 'bg-gray-200 text-gray-700'
-                    }`}>
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{student.name}</p>
-                      <p className="text-sm text-gray-600">{student.class} класс</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-blue-700">{student.points}</p>
-                      <p className="text-xs text-gray-500">{student.achievements} достижений</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card><CardHeader><CardTitle>Сравнение классов</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={280}><BarChart data={analytics.classComparisonData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="class" /><YAxis /><Tooltip /><Legend /><Bar dataKey="avgPoints" name="Средний балл" fill="#6366f1" /></BarChart></ResponsiveContainer></CardContent></Card>
+        <Card><CardHeader><CardTitle>ТОП учеников</CardTitle></CardHeader><CardContent><div className="space-y-2">{analytics.topStudentsData.map((s, i) => <div key={s.name + i} className="flex justify-between p-2 bg-gray-50 rounded"><span className="text-sm">{i + 1}. {s.name} ({s.class})</span><span className="font-semibold text-blue-700">{s.points}</span></div>)}</div></CardContent></Card>
+      </div>
     </div>
   );
 }
