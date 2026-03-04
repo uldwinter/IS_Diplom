@@ -14,8 +14,9 @@ interface NewAchievement {
   level: string;
   result: string;
   points: number;
-  status: 'pending';
   date: string;
+  description?: string;
+  documents?: string[];
 }
 
 interface AddAchievementDialogProps {
@@ -78,8 +79,9 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
       level: level || '-',
       result: result || '-',
       points,
-      status: 'pending',
       date: dateFormatted,
+      description: description || undefined,
+      documents: files.length ? files : undefined,
     };
 
     if (onAdd) {
