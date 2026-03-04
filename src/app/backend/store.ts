@@ -356,6 +356,13 @@ export function login(loginValue: string, password: string) {
       `Вход в систему как ${roleRu(user.role)}; device=${typeof navigator !== 'undefined' ? navigator.userAgent : 'server'}`,
       draft
     );
+  if (!user) return { ok: false as const, message: 'Неверный логин или пароль' };
+  if (user.status !== 'active') return { ok: false as const, message: 'Пользователь деактивирован администратором' };
+
+  mutate((prev) => {
+    const draft = { ...prev, users: prev.users.map((u) => (u.id === user.id ? { ...u, lastLogin: now() } : u)) };
+    draft.currentUserId = user.id;
+    addAudit(user, 'Вход', 'Авторизация', `Вход в систему как ${roleRu(user.role)}`, draft);
     return draft;
   });
 
@@ -373,6 +380,7 @@ export function submitStudentRegistration(payload: Omit<RegistrationRequest, 'id
   );
   if (loginTaken) return { ok: false as const, message: 'Логин уже занят. Выберите другой.' };
   if (loginPending) return { ok: false as const, message: 'Заявка с таким логином уже отправлена и ожидает проверки.' };
+  if (loginTaken) return { ok: false as const, message: 'Логин уже занят. Выберите другой.' };
 
   mutate((prev) => {
     const request: RegistrationRequest = { ...payload, id: nextId(prev.registrations), submittedAt: now(), status: 'pending' };
@@ -422,6 +430,12 @@ export function processRegistration(requestId: number, action: 'approve' | 'reje
           notifications: true,
         },
       ];
+    const registrations = prev.registrations.map((r) => (r.id === requestId ? { ...r, status: action === 'approve' ? 'approved' : 'rejected', comment } : r));
+    const draft: BackendState = { ...prev, registrations };
+
+    if (action === 'approve') {
+      const name = `${req.lastName} ${req.firstName} ${req.middleName}`;
+      draft.users = [...prev.users, { id: nextId(prev.users), login: req.login, password: req.password, name, email: req.email, role: 'student', class: req.class, status: 'active', lastLogin: 'Ещё не заходил' }];
       addNotification({ userRole: 'admin', type: 'success', title: 'Новый ученик', message: `Куратор одобрил регистрацию: ${name}` }, draft);
     }
 
@@ -472,6 +486,7 @@ export function deleteUser(userId: number) {
       sectionApplications: prev.sectionApplications.filter((a) => a.studentId !== userId),
       userSettings: prev.userSettings.filter((s) => s.userId !== userId),
     };
+    const draft = { ...prev, users: prev.users.filter((u) => u.id !== userId) };
     const actor = getCurrentUser() ?? prev.users[0];
     addAudit(actor, 'Удаление', 'Пользователи', `Удален пользователь #${userId}`, draft);
     return draft;
@@ -526,11 +541,13 @@ export function processAchievement(achievementId: number, action: 'approve' | 'r
     const actor = getCurrentUser() ?? prev.users.find((u) => u.role === 'curator')!;
 
     const updated: AchievementRecord[] = prev.achievements.map((a) => {
+    const updated = prev.achievements.map((a) => {
       if (a.id !== achievementId) return a;
       const nextHistoryId = nextId(a.history);
       return {
         ...a,
         status: action === 'approve' ? 'approved' as const : 'rejected' as const,
+        status: action === 'approve' ? 'approved' : 'rejected',
         comment,
         history: [...a.history, { id: nextHistoryId, action: action === 'approve' ? 'approved' : 'rejected', user: shortName(actor.name), userRole: 'Куратор', timestamp: now(), comment }],
       };
@@ -553,6 +570,7 @@ export function markAllNotificationsRead(userRole: UserRole, userId?: number) {
     notifications: prev.notifications.map((n) => {
       if (n.userRole !== userRole) return n;
       if (userRole === 'student' && n.userId !== userId) return n;
+      if (userRole === 'student' && n.userId && userId && n.userId !== userId) return n;
       return { ...n, read: true };
     }),
   }));

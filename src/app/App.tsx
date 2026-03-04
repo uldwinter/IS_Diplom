@@ -39,6 +39,7 @@ import { StudentSectionsScreen } from '@/app/components/sections/StudentSections
 import { CuratorSectionsScreen } from '@/app/components/sections/CuratorSectionsScreen';
 import { AchievementsListScreen } from '@/app/components/AchievementsListScreen';
 import { UserRecord, getCurrentUser, logout as backendLogout } from '@/app/backend/store';
+import { UserRecord, logout as backendLogout } from '@/app/backend/store';
 
 type AppState = 'login' | 'student-registration' | 'app';
 type UserRole = 'admin' | 'curator' | 'student' | null;
