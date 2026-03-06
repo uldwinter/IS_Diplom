@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { AddAchievementDialog } from './AddAchievementDialog';
 import { submitAchievement, useBackendState } from '@/app/backend/store';
+import { toast } from 'sonner';
 
 interface StudentAchievementsManagementProps {
   studentUserId: number;
@@ -38,7 +39,12 @@ export function StudentAchievementsManagement({ studentUserId }: StudentAchievem
   };
 
   const handleAddAchievement = (newAchievement: { name: string; category: string; level: string; result: string; points: number; date: string; description?: string; documents?: string[] }) => {
-    submitAchievement(studentUserId, newAchievement);
+    const result = submitAchievement(studentUserId, newAchievement);
+    if (!result.ok) {
+      toast.error(result.message ?? 'Не удалось отправить достижение');
+      return;
+    }
+    toast.success('Заявка на достижение отправлена на проверку');
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 import { LoginScreen } from '@/app/components/LoginScreen';
 import { StudentRegistrationScreen } from '@/app/components/registration/StudentRegistrationScreen';
@@ -38,7 +38,7 @@ import { SectionsProvider } from '@/app/components/sections/SectionsContext';
 import { StudentSectionsScreen } from '@/app/components/sections/StudentSectionsScreen';
 import { CuratorSectionsScreen } from '@/app/components/sections/CuratorSectionsScreen';
 import { AchievementsListScreen } from '@/app/components/AchievementsListScreen';
-import { UserRecord, logout as backendLogout } from '@/app/backend/store';
+import { UserRecord, getCurrentUser, logout as backendLogout } from '@/app/backend/store';
 
 type AppState = 'login' | 'student-registration' | 'app';
 type UserRole = 'admin' | 'curator' | 'student' | null;
@@ -51,6 +51,16 @@ function AppContent() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
 
   const [currentUser, setCurrentUser] = useState<UserRecord | null>(null);
+
+  useEffect(() => {
+    const restored = getCurrentUser();
+    if (restored) {
+      setCurrentUser(restored);
+      setUserRole(restored.role);
+      setAppState('app');
+      setCurrentScreen('main');
+    }
+  }, []);
 
   const handleLogin = (user: UserRecord) => {
     setCurrentUser(user);
