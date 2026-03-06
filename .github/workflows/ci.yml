@@ -15,4 +15,5 @@ jobs:
       - run: npm ci
       - run: npm run check:contracts
       - run: npm run check:store
+      - run: npm run check:types
       - run: npm run build

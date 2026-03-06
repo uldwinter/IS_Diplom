@@ -12,7 +12,8 @@
 1. `npm ci`
 2. `npm run check:contracts`
 3. `npm run check:store`
-4. `npm run build`
+4. `npm run check:types`
+5. `npm run build`
 
 ## Если появились конфликты
 1. Обновить ветку: `git fetch origin && git rebase origin/main`

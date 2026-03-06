@@ -82,6 +82,7 @@ npm run dev
 GitHub Actions (`.github/workflows/ci.yml`) проверяет:
 - `npm run check:contracts`
 - `npm run check:store`
+- `npm run check:types`
 - `npm run build`
 
 ---
@@ -110,11 +111,15 @@ chmod +x scripts/predeploy.sh
 1. проверит наличие Docker и Docker Compose,
 2. проверит наличие `package-lock.json`,
 3. выполнит `npm run check:contracts` и `npm run check:store`,
-4. выполнит `npm run build`,
-5. проверит `docker compose config`,
-6. запустит `docker compose up -d --build`.
+4. выполнит `npm run check:types`,
+5. выполнит `npm run build`,
+6. проверит `docker compose config`,
+7. запустит `docker compose up -d --build`.
 
 ## Диагностика типичных проблем запуска
+
+- Полная инструкция локального запуска (RU): `docs/LOCAL_RUN_RU.md`.
+- Полная инструкция по хостингу/VPS (RU): `docs/HOSTING_DEPLOY_RU.md`.
 
 - Рекомендации по ведению маленьких отдельных PR: `docs/PR_STRATEGY.md`.
 
@@ -125,5 +130,6 @@ chmod +x scripts/predeploy.sh
 ```bash
 npm run check:contracts
 npm run check:store
+npm run check:types
 npm run build
 ```

@@ -22,17 +22,20 @@ if [[ ! -f package-lock.json ]]; then
   exit 1
 fi
 
-echo "[4/7] Проверка smoke-тестов..."
+echo "[4/8] Проверка smoke-тестов..."
 npm run check:contracts
 npm run check:store
 
-echo "[5/7] Сборка frontend..."
+echo "[5/8] TypeScript-проверка..."
+npm run check:types
+
+echo "[6/8] Сборка frontend..."
 npm run build
 
-echo "[6/7] Проверка compose-конфига..."
+echo "[7/8] Проверка compose-конфига..."
 docker compose config >/dev/null
 
-echo "[7/7] Запуск контейнеров..."
+echo "[8/8] Запуск контейнеров..."
 docker compose up -d --build
 
 echo "\n✅ Готово. Сервисы:"
