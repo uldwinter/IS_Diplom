@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "check:contracts": "node scripts/check-contracts.mjs",
+    "check:store": "node scripts/check-store-hardening.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
