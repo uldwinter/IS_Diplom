@@ -7,10 +7,9 @@ interface CuratorLayoutProps {
   currentScreen: string;
   onNavigate: (screen: string) => void;
   onLogout: () => void;
-  userId?: number;
 }
 
-export function CuratorLayout({ children, currentScreen, onNavigate, onLogout, userId }: CuratorLayoutProps) {
+export function CuratorLayout({ children, currentScreen, onNavigate, onLogout }: CuratorLayoutProps) {
   const menuItems = [
     { id: 'main', label: 'Главная', icon: Home },
     { id: 'sections', label: 'Секции', icon: Grid },
@@ -74,7 +73,7 @@ export function CuratorLayout({ children, currentScreen, onNavigate, onLogout, u
             <h1 className="text-xl text-gray-900 font-semibold truncate max-w-3xl">
               Банк достижений учащихся МАОУ ОЦ2 города Челябинск
             </h1>
-            <NotificationCenter userRole="curator" userId={userId} />
+            <NotificationCenter userRole="curator" />
           </div>
         </header>
 

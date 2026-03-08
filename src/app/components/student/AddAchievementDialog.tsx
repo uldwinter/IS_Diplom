@@ -15,8 +15,8 @@ interface NewAchievement {
   result: string;
   points: number;
   date: string;
-  description?: string;
   documents?: string[];
+  description?: string;
 }
 
 interface AddAchievementDialogProps {
@@ -80,8 +80,8 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
       result: result || '-',
       points,
       date: dateFormatted,
+      documents: files,
       description: description || undefined,
-      documents: files.length ? files : undefined,
     };
 
     if (onAdd) {

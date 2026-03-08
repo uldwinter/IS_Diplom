@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSections, Section } from './SectionsContext';
+import { useApp } from '@/app/lib/AppContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
@@ -7,18 +8,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/ta
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
 import { Calendar, Users, Clock, MapPin, CheckCircle, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getCurrentUser } from '@/app/backend/store';
 
 export function StudentSectionsScreen() {
   const { sections, applications, getStudentSections, addApplication } = useSections();
+  const { currentUser } = useApp();
   const [activeTab, setActiveTab] = useState('all');
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const currentStudent = getCurrentUser();
-  const currentStudentId = currentStudent?.id ?? 0;
-  const currentStudentName = currentStudent?.name ?? 'Ученик';
-  const currentStudentClass = currentStudent?.class ?? '—';
+  // Use real logged-in student
+  const currentStudentId = currentUser?.studentId ?? 1;
+  const currentStudentName = currentUser?.name ?? 'Ученик';
+  const currentStudentClass = currentUser?.class ?? '';
 
   const mySections = getStudentSections(currentStudentId);
   const myApplications = applications.filter(app => app.studentId === currentStudentId);
@@ -38,23 +39,14 @@ export function StudentSectionsScreen() {
 
   const handleApply = () => {
     if (!selectedSection) return;
-    if (!currentStudentId) {
-      toast.error('Не удалось определить текущего пользователя');
-      return;
-    }
     
-    const result = addApplication({
+    addApplication({
       studentId: currentStudentId,
       studentName: currentStudentName,
       studentClass: currentStudentClass,
       sectionId: selectedSection.id,
     });
-
-    if (!result.ok) {
-      toast.error(result.message ?? 'Не удалось отправить заявку');
-      return;
-    }
-
+    
     toast.success(`Заявка в секцию "${selectedSection.name}" отправлена`);
     setIsDialogOpen(false);
   };

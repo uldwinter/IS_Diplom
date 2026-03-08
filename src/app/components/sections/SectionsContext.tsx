@@ -1,76 +1,52 @@
-import React, { createContext, useContext } from 'react';
-import {
-  addSection as addSectionInStore,
-  addSectionApplication,
-  deleteSection as deleteSectionInStore,
-  getSectionMembersCount as getSectionMembersCountFromStore,
-  getStudentSections as getStudentSectionsFromStore,
-  updateSectionApplicationStatus,
-  useBackendState,
-} from '@/app/backend/store';
+/**
+ * SectionsContext — thin compatibility shim.
+ * All logic now lives in AppContext (/src/app/lib/AppContext.tsx).
+ * This file re-exports the Section and SectionApplication types
+ * and the useSections() hook so existing components don't need renaming.
+ */
 
-export interface Section {
-  id: string;
-  name: string;
-  category: 'sport' | 'science' | 'art' | 'social';
-  description: string;
-  schedule: string;
-  location: string;
-  teacher: string;
-  capacity: number;
-}
+export type { Section, SectionApplication, SectionMember } from '@/app/lib/types';
+export { AppProvider as SectionsProvider } from '@/app/lib/AppContext';
 
-export interface SectionApplication {
-  id: string;
-  studentId: number;
-  studentName: string;
-  studentClass: string;
-  sectionId: string;
-  status: 'pending' | 'approved' | 'rejected';
-  date: string;
-}
+import { useApp } from '@/app/lib/AppContext';
 
-export interface SectionMember {
-  sectionId: string;
-  studentId: number;
-}
+export function useSections() {
+  const {
+    sections,
+    sectionApplications,
+    sectionMembers,
+    addSection,
+    updateSection,
+    deleteSection,
+    applyToSection,
+    updateSectionAppStatus,
+    getStudentSections,
+    getSectionMembersCount,
+    isStudentMember,
+    hasApplied,
+  } = useApp();
 
-interface SectionsContextType {
-  sections: Section[];
-  applications: SectionApplication[];
-  members: SectionMember[];
-  addApplication: (app: Omit<SectionApplication, 'id' | 'status' | 'date'>) => { ok: boolean; message?: string };
-  updateApplicationStatus: (appId: string, status: 'approved' | 'rejected') => { ok: boolean; message?: string };
-  addSection: (section: Omit<Section, 'id'>) => void;
-  deleteSection: (id: string) => void;
-  getStudentSections: (studentId: number) => Section[];
-  getSectionMembersCount: (sectionId: string) => number;
-}
+  // Compat alias used by the old API
+  const addApplication = (appData: { studentId: number; studentName: string; studentClass: string; sectionId: string }) => {
+    applyToSection(appData.studentId, appData.studentName, appData.studentClass, appData.sectionId);
+  };
 
-const SectionsContext = createContext<SectionsContextType | undefined>(undefined);
+  const updateApplicationStatus = (appId: string, status: 'approved' | 'rejected') => {
+    updateSectionAppStatus(appId, status);
+  };
 
-export function SectionsProvider({ children }: { children: React.ReactNode }) {
-  const { sections, sectionApplications, sectionMembers } = useBackendState();
-
-  const value: SectionsContextType = {
+  return {
     sections,
     applications: sectionApplications,
     members: sectionMembers,
-    addApplication: addSectionApplication,
-    updateApplicationStatus: updateSectionApplicationStatus,
-    addSection: addSectionInStore,
-    deleteSection: deleteSectionInStore,
-    getStudentSections: getStudentSectionsFromStore,
-    getSectionMembersCount: getSectionMembersCountFromStore,
+    addApplication,
+    updateApplicationStatus,
+    addSection,
+    updateSection,
+    deleteSection,
+    getStudentSections,
+    getSectionMembersCount,
+    isStudentMember,
+    hasApplied,
   };
-
-  return <SectionsContext.Provider value={value}>{children}</SectionsContext.Provider>;
-}
-
-export function useSections() {
-  const context = useContext(SectionsContext);
-  if (context === undefined) {
-    throw new Error('useSections must be used within a SectionsProvider');
-  }
-  return context;
 }
