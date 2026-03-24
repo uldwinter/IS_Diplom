@@ -9,7 +9,8 @@ interface AdminMainScreenProps {
 }
 
 export function AdminMainScreen({ onNavigate }: AdminMainScreenProps) {
-  const { users, achievements, registrations, auditLogs } = useBackendState();
+  const backendState = useBackendState();
+  const { users, achievements, registrations, auditLogs } = backendState;
 
   const stats = useMemo(() => [
     { label: 'Всего пользователей', value: String(users.length), icon: Users, color: 'bg-blue-50 text-blue-600' },
@@ -21,13 +22,15 @@ export function AdminMainScreen({ onNavigate }: AdminMainScreenProps) {
   const recentActivity = auditLogs.slice(0, 6).map((l) => ({ id: l.id, action: `${l.action}: ${l.details}`, time: l.timestamp }));
 
   const handleBackup = () => {
-    const payload = { users, achievements, registrations, auditLogs };
+    const payload = { ...backendState, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success('Резервная копия создана и скачана');
   };

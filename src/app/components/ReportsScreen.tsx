@@ -24,11 +24,37 @@ export function ReportsScreen() {
   const classes = Array.from(new Set(students.map((s) => s.class ?? '—'))).sort();
   const filteredStudents = students.filter((s) => !studentClass || s.class === studentClass);
 
+  const parseRuDate = (value: string) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return new Date(`${trimmed}T00:00:00`);
+    const match = trimmed.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!match) return null;
+    const [, day, month, year] = match;
+    return new Date(`${year}-${month}-${day}T00:00:00`);
+  };
+
+  const isInPeriod = (dateValue: string, period: string) => {
+    if (period === 'all') return true;
+    const date = parseRuDate(dateValue);
+    if (!date || Number.isNaN(date.getTime())) return false;
+    const month = date.getMonth() + 1;
+    if (period === 'q1') return month >= 9 && month <= 11;
+    if (period === 'q2') return month === 12 || month <= 2;
+    if (period === 'q3') return month >= 3 && month <= 5;
+    if (period === 'q4') return month >= 6 && month <= 8;
+    return true;
+  };
+
   const handleGenerateClassReport = () => {
     if (!classValue || !periodClass) return toast.error('Заполните все поля отчета по классу');
     const classStudents = students.filter((s) => s.class === classValue);
     const data = classStudents.map((s) => {
-      const approved = achievements.filter((a) => a.studentUserId === s.id && a.status === 'approved');
+      const approved = achievements.filter((a) => (
+        a.studentUserId === s.id &&
+        a.status === 'approved' &&
+        isInPeriod(a.date, periodClass)
+      ));
       return { name: s.name, points: approved.reduce((sum, a) => sum + a.expectedPoints, 0), achievements: approved.length };
     }).sort((a, b) => b.points - a.points);
     setReportData({ class: classValue, period: periodClass, students: data });
@@ -40,7 +66,9 @@ export function ReportsScreen() {
     if (!studentId || !periodStudent) return toast.error('Заполните все поля отчета по ученику');
     const student = students.find((s) => String(s.id) === studentId);
     if (!student) return toast.error('Ученик не найден');
-    const data = achievements.filter((a) => a.studentUserId === student.id).map((a) => ({ achievement: a.achievementName, category: a.category, points: a.expectedPoints, status: a.status, date: a.date }));
+    const data = achievements
+      .filter((a) => a.studentUserId === student.id && isInPeriod(a.date, periodStudent))
+      .map((a) => ({ achievement: a.achievementName, category: a.category, points: a.expectedPoints, status: a.status, date: a.date }));
     setReportData({ studentName: student.name, period: periodStudent, achievements: data });
     setReportType('student');
     setReportDialogOpen(true);

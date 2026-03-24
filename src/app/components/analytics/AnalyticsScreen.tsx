@@ -1,13 +1,30 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Users, Award, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, Award, BarChart3, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBackendState } from '@/app/backend/store';
 
 export function AnalyticsScreen() {
   const { users, achievements } = useBackendState();
 
   const analytics = useMemo(() => {
+    const parseDate = (value: string) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T00:00:00`);
+      const match = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (!match) return null;
+      const [, day, month, year] = match;
+      return new Date(`${year}-${month}-${day}T00:00:00`);
+    };
+
+    const toMonthKey = (value: string) => {
+      const parsed = parseDate(value);
+      if (!parsed || Number.isNaN(parsed.getTime())) return value || 'Без даты';
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      return `${month}.${parsed.getFullYear()}`;
+    };
+
     const students = users.filter((u) => u.role === 'student');
     const approved = achievements.filter((a) => a.status === 'approved');
     const rejected = achievements.filter((a) => a.status === 'rejected');
@@ -31,7 +48,7 @@ export function AnalyticsScreen() {
 
     const monthly = new Map<string, { count: number; points: number }>();
     achievements.forEach((a) => {
-      const k = a.submittedDate || a.date;
+      const k = toMonthKey(a.submittedDate || a.date);
       const cur = monthly.get(k) ?? { count: 0, points: 0 };
       monthly.set(k, { count: cur.count + 1, points: cur.points + (a.status === 'approved' ? a.expectedPoints : 0) });
     });
@@ -52,9 +69,45 @@ export function AnalyticsScreen() {
     return { studentsCount: students.length, achievementsCount: achievements.length, avgPoints, approvalRate, monthlyAchievementsData, categoryDistribution, classComparisonData, topStudentsData, approvalRateData };
   }, [users, achievements]);
 
+  const handleExportAnalytics = () => {
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      metrics: {
+        studentsCount: analytics.studentsCount,
+        achievementsCount: analytics.achievementsCount,
+        avgPoints: analytics.avgPoints,
+        approvalRate: analytics.approvalRate,
+      },
+      monthlyAchievementsData: analytics.monthlyAchievementsData,
+      categoryDistribution: analytics.categoryDistribution,
+      classComparisonData: analytics.classComparisonData,
+      topStudentsData: analytics.topStudentsData,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analytics-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Аналитика экспортирована в JSON');
+  };
+
   return (
     <div className="space-y-6">
-      <div><h2 className="text-2xl text-gray-900 mb-2">Аналитика и статистика</h2><p className="text-gray-600">Автоматически рассчитанные показатели системы</p></div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-2xl text-gray-900 mb-2">Аналитика и статистика</h2>
+          <p className="text-gray-600">Автоматически рассчитанные показатели системы</p>
+        </div>
+        <Button onClick={handleExportAnalytics} variant="outline" className="gap-2">
+          <Download className="w-4 h-4" />
+          Экспорт JSON
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[{ label: 'Всего достижений', value: analytics.achievementsCount, icon: Award, color: 'bg-blue-50 text-blue-600' }, { label: 'Активных учеников', value: analytics.studentsCount, icon: Users, color: 'bg-green-50 text-green-600' }, { label: 'Средний балл', value: analytics.avgPoints, icon: TrendingUp, color: 'bg-purple-50 text-purple-600' }, { label: '% одобрения', value: `${analytics.approvalRate}%`, icon: BarChart3, color: 'bg-orange-50 text-orange-600' }].map((s) => <Card key={s.label}><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-600 mb-1">{s.label}</p><p className="text-3xl font-semibold text-gray-900">{s.value}</p></div><div className={`p-3 rounded-lg ${s.color}`}><s.icon className="w-6 h-6" /></div></div></CardContent></Card>)}
