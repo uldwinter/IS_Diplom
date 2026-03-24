@@ -679,7 +679,7 @@ export function addSectionApplication(payload: Omit<SectionApplicationRecord, 'i
       ],
     };
     added = true;
-    addNotification({ userRole: 'curator', type: 'info', title: 'Новая заявка в секцию', message: `${payload.studentName} → секция ${payload.sectionId}` }, draft);
+    addNotification({ userRole: 'curator', type: 'info', title: 'Новая заявка в секцию', message: `${payload.studentName} → ${section.name}` }, draft);
     return draft;
   });
 
@@ -704,14 +704,16 @@ export function updateSectionApplicationStatus(appId: string, status: 'approved'
       return prev;
     }
 
+    const section = prev.sections.find((s) => s.id === app.sectionId);
+    const sectionLabel = section?.name ?? app.sectionId;
+
     if (status !== 'approved') {
       const draftRejected = { ...prev, sectionApplications: updatedApps };
-      addNotification({ userRole: 'student', userId: app.studentId, type: 'warning', title: 'Заявка в секцию отклонена', message: app.sectionId }, draftRejected);
+      addNotification({ userRole: 'student', userId: app.studentId, type: 'warning', title: 'Заявка в секцию отклонена', message: sectionLabel }, draftRejected);
       addAudit(actor, 'Отклонение', 'Секции', `Отклонена заявка ${appId}`, draftRejected);
       return draftRejected;
     }
 
-    const section = prev.sections.find((s) => s.id === app.sectionId);
     const membersInSection = prev.sectionMembers.filter((m) => m.sectionId === app.sectionId).length;
     if (section && membersInSection >= section.capacity) {
       result = { ok: false, message: 'Невозможно одобрить: лимит участников секции исчерпан.' };
@@ -728,7 +730,7 @@ export function updateSectionApplicationStatus(appId: string, status: 'approved'
       sectionApplications: updatedApps,
       sectionMembers: exists ? prev.sectionMembers : [...prev.sectionMembers, { sectionId: app.sectionId, studentId: app.studentId }],
     };
-    addNotification({ userRole: 'student', userId: app.studentId, type: 'success', title: 'Заявка в секцию одобрена', message: app.sectionId }, draftApproved);
+    addNotification({ userRole: 'student', userId: app.studentId, type: 'success', title: 'Заявка в секцию одобрена', message: sectionLabel }, draftApproved);
     addAudit(actor, 'Одобрение', 'Секции', `Одобрена заявка ${appId}`, draftApproved);
     return draftApproved;
   });
@@ -752,31 +754,57 @@ export function getUserSettings(userId: number): UserSettingsRecord | null {
 export function saveUserSettings(userId: number, patch: Omit<UserSettingsRecord, 'userId'>) {
   mutate((prev) => {
     const exists = prev.userSettings.some((s) => s.userId === userId);
-    return {
+    const actor = getCurrentUser() ?? prev.users[0];
+    const draft = {
       ...prev,
       userSettings: exists
         ? prev.userSettings.map((s) => (s.userId === userId ? { ...s, ...patch } : s))
         : [...prev.userSettings, { userId, ...patch }],
-      users: prev.users.map((u) => (u.id === userId ? { ...u, name: patch.position === 'Ученик' ? u.name : u.name, email: u.email } : u)),
     };
+    addAudit(actor, 'Редактирование', 'Настройки', `Обновлены пользовательские настройки #${userId}`, draft);
+    return draft;
   });
 }
 
 export function updateCurrentUserProfile(payload: { name: string; email: string; phone: string; position: string }) {
   const current = getCurrentUser();
   if (!current) return;
-  mutate((prev) => ({
-    ...prev,
-    users: prev.users.map((u) => (u.id === current.id ? { ...u, name: payload.name, email: payload.email } : u)),
-    userSettings: prev.userSettings.map((s) => (s.userId === current.id ? { ...s, phone: payload.phone, position: payload.position } : s)),
-  }));
+  mutate((prev) => {
+    const hasSettings = prev.userSettings.some((s) => s.userId === current.id);
+    const draft = {
+      ...prev,
+      users: prev.users.map((u) => (u.id === current.id ? { ...u, name: payload.name, email: payload.email } : u)),
+      userSettings: hasSettings
+        ? prev.userSettings.map((s) => (s.userId === current.id ? { ...s, phone: payload.phone, position: payload.position } : s))
+        : [
+            ...prev.userSettings,
+            {
+              userId: current.id,
+              position: payload.position,
+              phone: payload.phone,
+              rowsPerPage: '10',
+              dateFormat: 'dd.mm.yyyy',
+              showTooltips: true,
+              saveFilters: true,
+              notifications: true,
+            },
+          ],
+    };
+    addAudit(current, 'Редактирование', 'Профиль', 'Пользователь обновил профиль', draft);
+    return draft;
+  });
 }
 
 export function changeCurrentUserPassword(currentPassword: string, newPassword: string) {
   const current = getCurrentUser();
   if (!current) return { ok: false as const, message: 'Пользователь не найден' };
   if (current.password !== currentPassword) return { ok: false as const, message: 'Текущий пароль неверен' };
-  mutate((prev) => ({ ...prev, users: prev.users.map((u) => (u.id === current.id ? { ...u, password: newPassword } : u)) }));
+  if (newPassword.trim().length < 8) return { ok: false as const, message: 'Новый пароль должен содержать минимум 8 символов' };
+  mutate((prev) => {
+    const draft = { ...prev, users: prev.users.map((u) => (u.id === current.id ? { ...u, password: newPassword } : u)) };
+    addAudit(current, 'Редактирование', 'Безопасность', 'Пользователь изменил пароль', draft);
+    return draft;
+  });
   return { ok: true as const };
 }
 

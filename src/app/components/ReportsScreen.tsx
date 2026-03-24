@@ -39,6 +39,15 @@ export function ReportsScreen() {
     const date = parseRuDate(dateValue);
     if (!date || Number.isNaN(date.getTime())) return false;
     const month = date.getMonth() + 1;
+    if (period === 'current') {
+      const nowDate = new Date();
+      const currentYear = nowDate.getFullYear();
+      const currentMonth = nowDate.getMonth() + 1;
+      const academicYearStart = currentMonth >= 9 ? currentYear : currentYear - 1;
+      const academicYearEnd = academicYearStart + 1;
+      const dateYear = date.getFullYear();
+      return (dateYear === academicYearStart && month >= 9) || (dateYear === academicYearEnd && month <= 8);
+    }
     if (period === 'q1') return month >= 9 && month <= 11;
     if (period === 'q2') return month === 12 || month <= 2;
     if (period === 'q3') return month >= 3 && month <= 5;
