@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSections, Section } from './SectionsContext';
+import { useApp } from '@/app/lib/AppContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
@@ -11,6 +12,7 @@ import { getCurrentUser } from '@/app/backend/store';
 
 export function StudentSectionsScreen() {
   const { sections, applications, getStudentSections, addApplication } = useSections();
+  const { currentUser } = useApp();
   const [activeTab, setActiveTab] = useState('all');
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

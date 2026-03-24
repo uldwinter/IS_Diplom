@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { Badge } from '@/app/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
@@ -16,6 +17,14 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
   const student = getStudents().find((s) => s.id === studentId);
   const { getStudentSections } = useSections();
   const studentSections = getStudentSections(studentId);
+  const allAchievements = achievements.filter(a => a.studentId === studentId);
+
+  const academic = allAchievements.filter(a => a.category === 'Учебные достижения');
+  const extracurricular = allAchievements.filter(a => a.category === 'Внеурочная деятельность');
+  const projects = allAchievements.filter(a => a.category === 'Проектная деятельность');
+  const other = allAchievements.filter(a => !['Учебные достижения', 'Внеурочная деятельность', 'Проектная деятельность'].includes(a.category));
+
+  const approvedPoints = allAchievements.filter(a => a.status === 'approved').reduce((sum, a) => sum + a.points, 0);
 
   if (!student) {
     return <div className="space-y-6"><Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="w-4 h-4" />Назад</Button><p>Учащийся не найден</p></div>;
@@ -27,6 +36,50 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
   const extracurricular = studentAchievements.filter((a) => a.category === 'Внеурочная деятельность');
   const projects = studentAchievements.filter((a) => a.category === 'Проектная деятельность');
 
+  const AchievementTable = ({ items }: { items: typeof allAchievements }) => (
+    <div className="border rounded-md">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-gray-50">
+            <TableHead className="w-12">№</TableHead>
+            <TableHead>Наименование</TableHead>
+            <TableHead>Уровень</TableHead>
+            <TableHead>Результат</TableHead>
+            <TableHead className="text-center">Баллы</TableHead>
+            <TableHead className="text-center">Статус</TableHead>
+            <TableHead>Дата</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-gray-500 py-6">Нет данных</TableCell>
+            </TableRow>
+          ) : (
+            items.map((ach, index) => (
+              <TableRow key={ach.id}>
+                <TableCell>{index + 1}</TableCell>
+                <TableCell>
+                  <div>
+                    <p className="font-medium text-gray-900">{ach.name}</p>
+                    {ach.comment && ach.status === 'rejected' && (
+                      <p className="text-xs text-red-600 mt-0.5">Причина: {ach.comment}</p>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-gray-700">{ach.level}</TableCell>
+                <TableCell className="text-sm text-gray-700">{ach.result}</TableCell>
+                <TableCell className="text-center font-semibold text-blue-700">{ach.points}</TableCell>
+                <TableCell className="text-center">{getStatusBadge(ach.status)}</TableCell>
+                <TableCell className="text-sm text-gray-600">{ach.date}</TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4"><Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="w-4 h-4" />Назад</Button></div>
@@ -34,10 +87,10 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
 
       <Tabs defaultValue="academic" className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-gray-100">
-          <TabsTrigger value="academic">Учебные достижения</TabsTrigger>
-          <TabsTrigger value="extracurricular">Внеурочная деятельность</TabsTrigger>
-          <TabsTrigger value="projects">Проектная деятельность</TabsTrigger>
-          <TabsTrigger value="sections">Секции</TabsTrigger>
+          <TabsTrigger value="academic">Учебные ({academic.length})</TabsTrigger>
+          <TabsTrigger value="extracurricular">Внеурочная ({extracurricular.length})</TabsTrigger>
+          <TabsTrigger value="projects">Проекты ({projects.length})</TabsTrigger>
+          <TabsTrigger value="sections">Секции ({studentSections.length})</TabsTrigger>
         </TabsList>
 
         {[

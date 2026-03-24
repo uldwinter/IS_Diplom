@@ -2,31 +2,32 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Award, Clock, CheckCircle, XCircle, TrendingUp, Plus, Users, Newspaper } from 'lucide-react';
+import { useApp } from '@/app/lib/AppContext';
 
 interface StudentMainScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
+  const { currentUser, achievements } = useApp();
+
+  const studentId = currentUser?.studentId ?? 0;
+  const myAchievements = achievements.filter(a => a.studentId === studentId);
+
   const studentInfo = {
-    name: 'Иванов Иван Иванович',
-    class: '10-1',
-    totalPoints: 267,
-    rank: 1,
+    name: currentUser?.name ?? 'Ученик',
+    class: currentUser?.class ?? '',
+    totalPoints: myAchievements.filter(a => a.status === 'approved').reduce((s, a) => s + a.points, 0),
   };
 
   const stats = [
-    { label: 'Всего достижений', value: '12', icon: Award, color: 'bg-blue-50 text-blue-600' },
-    { label: 'На проверке', value: '3', icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
-    { label: 'Одобрено', value: '8', icon: CheckCircle, color: 'bg-green-50 text-green-600' },
-    { label: 'Отклонено', value: '1', icon: XCircle, color: 'bg-red-50 text-red-600' },
+    { label: 'Всего достижений', value: String(myAchievements.length), icon: Award, color: 'bg-blue-50 text-blue-600' },
+    { label: 'На проверке', value: String(myAchievements.filter(a => a.status === 'pending').length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
+    { label: 'Одобрено', value: String(myAchievements.filter(a => a.status === 'approved').length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
+    { label: 'Отклонено', value: String(myAchievements.filter(a => a.status === 'rejected').length), icon: XCircle, color: 'bg-red-50 text-red-600' },
   ];
 
-  const recentAchievements = [
-    { id: 1, name: 'Всероссийская олимпиада по математике', status: 'approved', points: 40, date: '15.01.2026' },
-    { id: 2, name: 'Участие в волонтёрской акции', status: 'pending', points: 25, date: '18.01.2026' },
-    { id: 3, name: 'Защита проекта по информатике', status: 'pending', points: 40, date: '19.01.2026' },
-  ];
+  const recentAchievements = myAchievements.slice(0, 5);
 
   const getStatusBadge = (status: string) => {
     if (status === 'approved') return <Badge className="bg-green-600">Одобрено</Badge>;
@@ -48,15 +49,15 @@ export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 mb-1">Ваш рейтинг в классе</p>
+              <p className="text-blue-100 mb-1">Одобренные баллы</p>
               <div className="flex items-center gap-3">
-                <span className="text-4xl font-bold">{studentInfo.rank} место</span>
+                <span className="text-4xl font-bold">{studentInfo.totalPoints}</span>
                 <TrendingUp className="w-8 h-8" />
               </div>
             </div>
             <div className="text-right">
-              <p className="text-blue-100 mb-1">Всего баллов</p>
-              <p className="text-4xl font-bold">{studentInfo.totalPoints}</p>
+              <p className="text-blue-100 mb-1">Достижений в портфолио</p>
+              <p className="text-4xl font-bold">{myAchievements.filter(a => a.status === 'approved').length}</p>
             </div>
           </div>
         </CardContent>
