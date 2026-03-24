@@ -7,9 +7,10 @@ interface AdminLayoutProps {
   currentScreen: string;
   onNavigate: (screen: string) => void;
   onLogout: () => void;
+  userId?: number;
 }
 
-export function AdminLayout({ children, currentScreen, onNavigate, onLogout }: AdminLayoutProps) {
+export function AdminLayout({ children, currentScreen, onNavigate, onLogout, userId }: AdminLayoutProps) {
   const menuItems = [
     { id: 'main', label: 'Главная', icon: Home },
     { id: 'users', label: 'Пользователи', icon: Shield },
@@ -73,7 +74,7 @@ export function AdminLayout({ children, currentScreen, onNavigate, onLogout }: A
             <h1 className="text-xl text-gray-900 font-semibold truncate max-w-3xl">
               Банк достижений учащихся МАОУ ОЦ2 города Челябинск
             </h1>
-            <NotificationCenter userRole="admin" />
+            <NotificationCenter userRole="admin" userId={userId} />
           </div>
         </header>
 

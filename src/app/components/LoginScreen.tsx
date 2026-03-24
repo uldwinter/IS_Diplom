@@ -3,18 +3,29 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { toast } from 'sonner';
+import { login, UserRecord } from '@/app/backend/store';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (user: UserRecord) => void;
+  onOpenRegistration: () => void;
 }
 
-export function LoginScreen({ onLogin }: LoginScreenProps) {
-  const [login, setLogin] = useState('');
+export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
+  const [loginValue, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    const result = login(loginValue, password);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(`Вход выполнен: ${result.user.name}`);
+    onLogin(result.user);
   };
 
   return (
@@ -34,8 +45,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                 id="login"
                 type="text"
                 placeholder="Введите логин"
-                value={login}
-                onChange={(e) => setLogin(e.target.value)}
+                value={loginValue}
+                onChange={(e) => setLoginValue(e.target.value)}
                 className="bg-white h-11"
               />
             </div>
@@ -53,7 +64,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-11 text-base mt-6">
               Войти
             </Button>
+            <Button type="button" variant="outline" onClick={onOpenRegistration} className="w-full h-11 text-base">
+              Регистрация ученика
+            </Button>
           </form>
+          <p className="text-xs text-gray-500 mt-4 text-center">
+            Демо-аккаунты отключены. Для входа используйте учетные данные, выданные администратором.
+          </p>
         </CardContent>
       </Card>
     </div>
