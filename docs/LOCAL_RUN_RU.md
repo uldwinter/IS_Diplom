@@ -133,10 +133,7 @@ docker compose up --build
 База данных будет доступна на:
 - **PostgreSQL:** `localhost:5432`
 
-Тестовые учётные данные:
-- `admin / admin123`
-- `curator / curator123`
-- `student / student123`
+Учётные данные пользователей задаются администратором системы.
 
 ---
 

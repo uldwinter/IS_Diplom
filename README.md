@@ -120,10 +120,7 @@ docker compose up --build
 - **API:** `http://localhost:8080`
 - **PostgreSQL:** `localhost:5432`
 
-Тестовые пользователи:
-- `admin / admin123`
-- `curator / curator123`
-- `student / student123`
+Входные данные пользователей создаются администратором системы.
 
 При запуске API автоматически:
 1. ждёт, пока будет готова база данных,

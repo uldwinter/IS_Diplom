@@ -68,6 +68,9 @@ export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
               Регистрация ученика
             </Button>
           </form>
+          <p className="text-xs text-gray-500 mt-4 text-center">
+            Демо-аккаунты отключены. Для входа используйте учетные данные, выданные администратором.
+          </p>
         </CardContent>
       </Card>
     </div>
