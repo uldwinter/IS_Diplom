@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
@@ -7,10 +7,24 @@ import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Search, Download, User, Shield, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
-import { useApp } from '@/app/lib/AppContext';
+import { useBackendState } from '@/app/backend/store';
+
+interface AuditLogEntry {
+  id: number;
+  timestamp: string;
+  user: string;
+  userRole: 'admin' | 'curator' | 'student';
+  action: string;
+  entity: string;
+  details: string;
+  ipAddress?: string;
+}
+
+
 
 export function AuditLogScreen() {
-  const { auditLog } = useApp();
+  const { auditLogs } = useBackendState();
+  const logs = useMemo(() => auditLogs, [auditLogs]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterAction, setFilterAction] = useState<string>('all');

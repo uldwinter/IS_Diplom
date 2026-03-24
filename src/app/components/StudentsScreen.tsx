@@ -1,18 +1,19 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Eye, Search, Filter } from 'lucide-react';
-import { useApp } from '@/app/lib/AppContext';
+import { getStudents, useBackendState } from '@/app/backend/store';
 
 interface StudentsScreenProps {
   onViewStudent: (studentId: number) => void;
 }
 
 export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
-  const { students, achievements } = useApp();
+  const { users } = useBackendState();
+  const students = useMemo(() => getStudents(), [users]);
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
@@ -133,5 +134,3 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
   );
 }
 
-// Backward-compatibility export (used by StudentAchievementsScreen)
-export const MOCK_STUDENTS: never[] = [];
