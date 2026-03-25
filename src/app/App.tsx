@@ -45,13 +45,11 @@ function AppContent() {
   const { currentUser, logout, addAuditEntry } = useApp();
   const [currentScreen, setCurrentScreen] = useState<Screen>('main');
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
-
-  const [currentUser, setCurrentUser] = useState<UserRecord | null>(null);
+  const resolvedCurrentUser = getCurrentUser();
 
   useEffect(() => {
     const restored = getCurrentUser();
     if (restored) {
-      setCurrentUser(restored);
       setUserRole(restored.role);
       setAppState('app');
       setCurrentScreen('main');
@@ -59,7 +57,6 @@ function AppContent() {
   }, []);
 
   const handleLogin = (user: UserRecord) => {
-    setCurrentUser(user);
     setUserRole(user.role);
     setCurrentScreen('main');
     setAppState('app');
@@ -83,7 +80,6 @@ function AppContent() {
   const handleLogout = () => {
     setAppState('login');
     setUserRole(null);
-    setCurrentUser(null);
     backendLogout();
     setCurrentScreen('main');
     setSelectedStudentId(null);
@@ -101,7 +97,7 @@ function AppContent() {
   // Admin interface
   if (userRole === 'admin') {
     return (
-      <AdminLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={currentUser?.id}>
+      <AdminLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <AdminMainScreen onNavigate={handleNavigate} />}
         {currentScreen === 'users' && <AdminUsersScreen />}
         {currentScreen === 'students' && <StudentsScreen onViewStudent={handleViewStudent} />}
@@ -123,7 +119,7 @@ function AppContent() {
   // ── Curator ─────────────────────────────────────────────────
   if (currentUser.role === 'curator') {
     return (
-      <CuratorLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={currentUser?.id}>
+      <CuratorLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <CuratorMainScreen onNavigate={handleNavigate} />}
         {currentScreen === 'sections' && <CuratorSectionsScreen />}
         {currentScreen === 'requests' && <CuratorRequestsScreen />}
@@ -145,10 +141,10 @@ function AppContent() {
   // ── Student ─────────────────────────────────────────────────
   if (currentUser.role === 'student') {
     return (
-      <StudentLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={currentUser?.id}>
+      <StudentLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <StudentMainScreen onNavigate={handleNavigate} />}
         {currentScreen === 'sections' && <StudentSectionsScreen />}
-        {currentScreen === 'my-achievements' && currentUser && <StudentAchievementsManagement studentUserId={currentUser.id} />}
+        {currentScreen === 'my-achievements' && resolvedCurrentUser && <StudentAchievementsManagement studentUserId={resolvedCurrentUser.id} />}
         {currentScreen === 'rating' && <EnhancedRatingScreen />}
         {currentScreen === 'portfolio' && <StudentPortfolioScreen />}
         {currentScreen === 'calendar' && <EventsCalendarScreen />}

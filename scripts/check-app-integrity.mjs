@@ -9,7 +9,6 @@ const criticalStateDecls = [
   'userRole, setUserRole',
   'currentScreen, setCurrentScreen',
   'selectedStudentId, setSelectedStudentId',
-  'currentUser, setCurrentUser',
 ];
 
 for (const stateDecl of criticalStateDecls) {
@@ -19,6 +18,12 @@ for (const stateDecl of criticalStateDecls) {
     console.error(`App integrity check failed: expected exactly 1 declaration for "${stateDecl}", found ${matches.length}`);
     process.exit(1);
   }
+}
+
+const resolvedCurrentUserMatches = app.match(/const resolvedCurrentUser = getCurrentUser\(\);/g) ?? [];
+if (resolvedCurrentUserMatches.length !== 1) {
+  console.error(`App integrity check failed: expected exactly 1 resolvedCurrentUser declaration, found ${resolvedCurrentUserMatches.length}`);
+  process.exit(1);
 }
 
 const conflictRegexes = [/^<{7}/m, /^={7}/m, /^>{7}/m];
