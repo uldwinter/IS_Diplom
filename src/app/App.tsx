@@ -1,42 +1,39 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
+import { AppProvider, useApp } from '@/app/lib/AppContext';
+import type { SystemUser } from '@/app/lib/types';
+
 import { LoginScreen } from '@/app/components/LoginScreen';
 import { StudentRegistrationScreen } from '@/app/components/registration/StudentRegistrationScreen';
 
-// Admin components
+// Admin
 import { AdminLayout } from '@/app/components/layouts/AdminLayout';
 import { AdminMainScreen } from '@/app/components/admin/AdminMainScreen';
 import { AdminUsersScreen } from '@/app/components/admin/AdminUsersScreen';
 import { AuditLogScreen } from '@/app/components/admin/AuditLogScreen';
 
-// Curator components
+// Curator
 import { CuratorLayout } from '@/app/components/layouts/CuratorLayout';
 import { CuratorMainScreen } from '@/app/components/curator/CuratorMainScreen';
 import { CuratorRequestsScreen } from '@/app/components/curator/CuratorRequestsScreen';
 import { PendingRegistrationsScreen } from '@/app/components/curator/PendingRegistrationsScreen';
 
-// Student components
+// Student
 import { StudentLayout } from '@/app/components/layouts/StudentLayout';
 import { StudentMainScreen } from '@/app/components/student/StudentMainScreen';
 import { StudentAchievementsManagement } from '@/app/components/student/StudentAchievementsManagement';
 
-// Shared components
-import { MainScreen } from '@/app/components/MainScreen';
+// Shared screens
 import { StudentsScreen } from '@/app/components/StudentsScreen';
 import { StudentAchievementsScreen } from '@/app/components/StudentAchievementsScreen';
 import { ReportsScreen } from '@/app/components/ReportsScreen';
 import { SettingsScreen } from '@/app/components/SettingsScreen';
-import { RatingScreen } from '@/app/components/RatingScreen';
 import { EnhancedRatingScreen } from '@/app/components/rating/EnhancedRatingScreen';
 import { AnalyticsScreen } from '@/app/components/analytics/AnalyticsScreen';
 import { StudentPortfolioScreen } from '@/app/components/portfolio/StudentPortfolioScreen';
-import { EventsCalendarScreen } from '@/app/components/calendar/EventsCalendarScreen';
 import { VisualCalendarScreen } from '@/app/components/calendar/VisualCalendarScreen';
+import { EventsCalendarScreen } from '@/app/components/calendar/EventsCalendarScreen';
 import { NewsAndAnnouncementsScreen } from '@/app/components/news/NewsAndAnnouncementsScreen';
-
-import { SectionsProvider } from '@/app/components/sections/SectionsContext';
-import { StudentSectionsScreen } from '@/app/components/sections/StudentSectionsScreen';
-import { CuratorSectionsScreen } from '@/app/components/sections/CuratorSectionsScreen';
 import { AchievementsListScreen } from '@/app/components/AchievementsListScreen';
 import { UserRecord, getCurrentUser, logout as backendLogout } from '@/app/backend/store';
 
@@ -45,8 +42,7 @@ type UserRole = 'admin' | 'curator' | 'student' | null;
 type Screen = string;
 
 function AppContent() {
-  const [appState, setAppState] = useState<AppState>('login');
-  const [userRole, setUserRole] = useState<UserRole>(null);
+  const { currentUser, logout, addAuditEntry } = useApp();
   const [currentScreen, setCurrentScreen] = useState<Screen>('main');
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const resolvedCurrentUser = getCurrentUser();
@@ -106,10 +102,7 @@ function AppContent() {
         {currentScreen === 'users' && <AdminUsersScreen />}
         {currentScreen === 'students' && <StudentsScreen onViewStudent={handleViewStudent} />}
         {currentScreen === 'student-achievements' && selectedStudentId && (
-          <StudentAchievementsScreen
-            studentId={selectedStudentId}
-            onBack={handleBackToStudents}
-          />
+          <StudentAchievementsScreen studentId={selectedStudentId} onBack={handleBackToStudents} />
         )}
         {currentScreen === 'achievements' && <AchievementsListScreen />}
         {currentScreen === 'rating' && <EnhancedRatingScreen />}
@@ -123,8 +116,8 @@ function AppContent() {
     );
   }
 
-  // Curator interface
-  if (userRole === 'curator') {
+  // ── Curator ─────────────────────────────────────────────────
+  if (currentUser.role === 'curator') {
     return (
       <CuratorLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <CuratorMainScreen onNavigate={handleNavigate} />}
@@ -133,10 +126,7 @@ function AppContent() {
         {currentScreen === 'registrations' && <PendingRegistrationsScreen />}
         {currentScreen === 'students' && <StudentsScreen onViewStudent={handleViewStudent} />}
         {currentScreen === 'student-achievements' && selectedStudentId && (
-          <StudentAchievementsScreen
-            studentId={selectedStudentId}
-            onBack={handleBackToStudents}
-          />
+          <StudentAchievementsScreen studentId={selectedStudentId} onBack={handleBackToStudents} />
         )}
         {currentScreen === 'achievements' && <AchievementsListScreen />}
         {currentScreen === 'rating' && <EnhancedRatingScreen />}
@@ -148,8 +138,8 @@ function AppContent() {
     );
   }
 
-  // Student interface
-  if (userRole === 'student') {
+  // ── Student ─────────────────────────────────────────────────
+  if (currentUser.role === 'student') {
     return (
       <StudentLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <StudentMainScreen onNavigate={handleNavigate} />}
@@ -166,11 +156,15 @@ function AppContent() {
   return null;
 }
 
+function roleLabel(role: string) {
+  return role === 'admin' ? 'Администратор' : role === 'curator' ? 'Куратор' : 'Ученик';
+}
+
 export default function App() {
   return (
-    <SectionsProvider>
+    <AppProvider>
       <AppContent />
       <Toaster position="top-right" richColors />
-    </SectionsProvider>
+    </AppProvider>
   );
 }

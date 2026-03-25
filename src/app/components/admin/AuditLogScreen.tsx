@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
-import { Search, Filter, Download, User, Shield, GraduationCap } from 'lucide-react';
+import { Search, Download, User, Shield, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBackendState } from '@/app/backend/store';
 
@@ -29,43 +29,48 @@ export function AuditLogScreen() {
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterAction, setFilterAction] = useState<string>('all');
 
-  const filteredLogs = logs.filter((log) => {
+  const filteredLogs = auditLog.filter((log) => {
     const matchesSearch =
       searchQuery === '' ||
       log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchQuery.toLowerCase());
+      log.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      log.action.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = filterRole === 'all' || log.userRole === filterRole;
     const matchesAction = filterAction === 'all' || log.action.includes(filterAction);
     return matchesSearch && matchesRole && matchesAction;
   });
 
   const handleExport = () => {
+    // Build CSV
+    const header = 'Дата и время;Пользователь;Роль;Действие;Раздел;Детали\n';
+    const rows = filteredLogs.map(l =>
+      `${l.timestamp};${l.user};${l.userRole};${l.action};${l.entity};"${l.details}"`
+    ).join('\n');
+    const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit_log_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
     toast.success(`Экспортировано ${filteredLogs.length} записей журнала`);
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'admin':
-        return <Shield className="w-4 h-4 text-red-600" />;
-      case 'curator':
-        return <User className="w-4 h-4 text-blue-600" />;
-      case 'student':
-        return <GraduationCap className="w-4 h-4 text-green-600" />;
-      default:
-        return <User className="w-4 h-4 text-gray-600" />;
+      case 'admin': return <Shield className="w-4 h-4 text-red-600" />;
+      case 'curator': return <User className="w-4 h-4 text-blue-600" />;
+      case 'student': return <GraduationCap className="w-4 h-4 text-green-600" />;
+      default: return <User className="w-4 h-4 text-gray-600" />;
     }
   };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'admin':
-        return <Badge className="bg-red-600">Администратор</Badge>;
-      case 'curator':
-        return <Badge className="bg-blue-600">Куратор</Badge>;
-      case 'student':
-        return <Badge className="bg-green-600">Ученик</Badge>;
-      default:
-        return <Badge variant="outline">{role}</Badge>;
+      case 'admin': return <Badge className="bg-red-600">Администратор</Badge>;
+      case 'curator': return <Badge className="bg-blue-600">Куратор</Badge>;
+      case 'student': return <Badge className="bg-green-600">Ученик</Badge>;
+      default: return <Badge variant="outline">{role}</Badge>;
     }
   };
 
@@ -76,20 +81,18 @@ export function AuditLogScreen() {
         <p className="text-gray-600">Полный аудит всех действий в системе</p>
       </div>
 
-      {/* Фильтры и поиск */}
+      {/* Фильтры */}
       <Card>
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Поиск по пользователю или действию..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white"
-                />
-              </div>
+            <div className="md:col-span-2 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Поиск по пользователю или действию..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white"
+              />
             </div>
             <Select value={filterRole} onValueChange={setFilterRole}>
               <SelectTrigger className="bg-white">
@@ -113,6 +116,7 @@ export function AuditLogScreen() {
                 <SelectItem value="Отклонение">Отклонение</SelectItem>
                 <SelectItem value="Редактирование">Редактирование</SelectItem>
                 <SelectItem value="Удаление">Удаление</SelectItem>
+                <SelectItem value="Вход">Вход в систему</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -123,12 +127,8 @@ export function AuditLogScreen() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Всего записей</p>
-                <p className="text-2xl font-semibold text-gray-900">{logs.length}</p>
-              </div>
-            </div>
+            <p className="text-sm text-gray-600">Всего записей</p>
+            <p className="text-2xl font-semibold text-gray-900">{auditLog.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -137,7 +137,7 @@ export function AuditLogScreen() {
               <div>
                 <p className="text-sm text-gray-600">Действий админов</p>
                 <p className="text-2xl font-semibold text-red-700">
-                  {logs.filter((l) => l.userRole === 'admin').length}
+                  {auditLog.filter((l) => l.userRole === 'admin').length}
                 </p>
               </div>
               <Shield className="w-8 h-8 text-red-500" />
@@ -150,7 +150,7 @@ export function AuditLogScreen() {
               <div>
                 <p className="text-sm text-gray-600">Действий кураторов</p>
                 <p className="text-2xl font-semibold text-blue-700">
-                  {logs.filter((l) => l.userRole === 'curator').length}
+                  {auditLog.filter((l) => l.userRole === 'curator').length}
                 </p>
               </div>
               <User className="w-8 h-8 text-blue-500" />
@@ -163,7 +163,7 @@ export function AuditLogScreen() {
               <div>
                 <p className="text-sm text-gray-600">Действий учеников</p>
                 <p className="text-2xl font-semibold text-green-700">
-                  {logs.filter((l) => l.userRole === 'student').length}
+                  {auditLog.filter((l) => l.userRole === 'student').length}
                 </p>
               </div>
               <GraduationCap className="w-8 h-8 text-green-500" />
@@ -172,14 +172,14 @@ export function AuditLogScreen() {
         </Card>
       </div>
 
-      {/* Таблица логов */}
+      {/* Таблица */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>История действий ({filteredLogs.length})</CardTitle>
             <Button variant="outline" className="gap-2" onClick={handleExport}>
               <Download className="w-4 h-4" />
-              Экспортировать
+              Экспорт CSV
             </Button>
           </div>
         </CardHeader>
@@ -188,11 +188,11 @@ export function AuditLogScreen() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">
-                  <TableHead className="w-40">Дата и время</TableHead>
+                  <TableHead className="w-44">Дата и время</TableHead>
                   <TableHead>Пользователь</TableHead>
-                  <TableHead className="w-32">Роль</TableHead>
+                  <TableHead className="w-36">Роль</TableHead>
                   <TableHead>Действие</TableHead>
-                  <TableHead>Раздел</TableHead>
+                  <TableHead className="w-32">Раздел</TableHead>
                   <TableHead>Детали</TableHead>
                 </TableRow>
               </TableHeader>
@@ -206,7 +206,7 @@ export function AuditLogScreen() {
                 ) : (
                   filteredLogs.map((log) => (
                     <TableRow key={log.id} className="hover:bg-gray-50">
-                      <TableCell className="text-sm text-gray-600">{log.timestamp}</TableCell>
+                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">{log.timestamp}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getRoleIcon(log.userRole)}
@@ -218,7 +218,7 @@ export function AuditLogScreen() {
                       <TableCell>
                         <Badge variant="outline">{log.entity}</Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600 max-w-md truncate">
+                      <TableCell className="text-sm text-gray-600 max-w-xs truncate">
                         {log.details}
                       </TableCell>
                     </TableRow>
