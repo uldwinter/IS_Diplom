@@ -1,38 +1,19 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Eye, Search, Filter } from 'lucide-react';
-
-interface Student {
-  id: number;
-  lastName: string;
-  firstName: string;
-  middleName: string;
-  class: string;
-}
+import { getStudents, useBackendState } from '@/app/backend/store';
 
 interface StudentsScreenProps {
   onViewStudent: (studentId: number) => void;
 }
 
-const MOCK_STUDENTS: Student[] = [
-  { id: 1, lastName: 'Иванов', firstName: 'Иван', middleName: 'Иванович', class: '10-1' },
-  { id: 2, lastName: 'Петрова', firstName: 'Мария', middleName: 'Сергеевна', class: '10-1' },
-  { id: 3, lastName: 'Сидоров', firstName: 'Алексей', middleName: 'Петрович', class: '10-2' },
-  { id: 4, lastName: 'Козлова', firstName: 'Елена', middleName: 'Викторовна', class: '11-1' },
-  { id: 5, lastName: 'Новиков', firstName: 'Дмитрий', middleName: 'Александрович', class: '9-3' },
-  { id: 6, lastName: 'Морозова', firstName: 'Анна', middleName: 'Игоревна', class: '11-2' },
-  { id: 7, lastName: 'Волков', firstName: 'Сергей', middleName: 'Николаевич', class: '10-3' },
-  { id: 8, lastName: 'Соловьева', firstName: 'Ольга', middleName: 'Дмитриевна', class: '9-1' },
-  { id: 9, lastName: 'Лебедев', firstName: 'Андрей', middleName: 'Владимирович', class: '11-1' },
-  { id: 10, lastName: 'Кузнецова', firstName: 'Татьяна', middleName: 'Алексеевна', class: '10-1' },
-];
-
 export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
-  const [students] = useState<Student[]>(MOCK_STUDENTS);
+  const { users } = useBackendState();
+  const students = useMemo(() => getStudents(), [users]);
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
@@ -148,4 +129,3 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
   );
 }
 
-export { MOCK_STUDENTS };
