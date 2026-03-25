@@ -36,50 +36,6 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
   const extracurricular = studentAchievements.filter((a) => a.category === 'Внеурочная деятельность');
   const projects = studentAchievements.filter((a) => a.category === 'Проектная деятельность');
 
-  const AchievementTable = ({ items }: { items: typeof allAchievements }) => (
-    <div className="border rounded-md">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-gray-50">
-            <TableHead className="w-12">№</TableHead>
-            <TableHead>Наименование</TableHead>
-            <TableHead>Уровень</TableHead>
-            <TableHead>Результат</TableHead>
-            <TableHead className="text-center">Баллы</TableHead>
-            <TableHead className="text-center">Статус</TableHead>
-            <TableHead>Дата</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center text-gray-500 py-6">Нет данных</TableCell>
-            </TableRow>
-          ) : (
-            items.map((ach, index) => (
-              <TableRow key={ach.id}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>
-                  <div>
-                    <p className="font-medium text-gray-900">{ach.name}</p>
-                    {ach.comment && ach.status === 'rejected' && (
-                      <p className="text-xs text-red-600 mt-0.5">Причина: {ach.comment}</p>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-gray-700">{ach.level}</TableCell>
-                <TableCell className="text-sm text-gray-700">{ach.result}</TableCell>
-                <TableCell className="text-center font-semibold text-blue-700">{ach.points}</TableCell>
-                <TableCell className="text-center">{getStatusBadge(ach.status)}</TableCell>
-                <TableCell className="text-sm text-gray-600">{ach.date}</TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4"><Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="w-4 h-4" />Назад</Button></div>

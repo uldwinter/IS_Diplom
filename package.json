@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "check:app": "node scripts/check-app-integrity.mjs",
     "check:contracts": "node scripts/check-contracts.mjs",
     "check:store": "node scripts/check-store-hardening.mjs",
     "check:types": "tsc --noEmit"
