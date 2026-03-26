@@ -57,15 +57,15 @@ export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 mb-1">Ваш рейтинг в классе</p>
+              <p className="text-blue-100 mb-1">Одобренные баллы</p>
               <div className="flex items-center gap-3">
-                <span className="text-4xl font-bold">{studentInfo.rank} место</span>
+                <span className="text-4xl font-bold">{studentInfo.totalPoints}</span>
                 <TrendingUp className="w-8 h-8" />
               </div>
             </div>
             <div className="text-right">
-              <p className="text-blue-100 mb-1">Всего баллов</p>
-              <p className="text-4xl font-bold">{studentInfo.totalPoints}</p>
+              <p className="text-blue-100 mb-1">Достижений в портфолио</p>
+              <p className="text-4xl font-bold">{myAchievements.filter(a => a.status === 'approved').length}</p>
             </div>
           </div>
         </CardContent>
