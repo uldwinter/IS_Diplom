@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
@@ -7,6 +7,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Search, Filter, Download, User, Shield, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
+import { useBackendState } from '@/app/backend/store';
 
 interface AuditLogEntry {
   id: number;
@@ -19,19 +20,11 @@ interface AuditLogEntry {
   ipAddress?: string;
 }
 
-const MOCK_AUDIT_LOG: AuditLogEntry[] = [
-  { id: 1, timestamp: '25.01.2026 14:30:25', user: 'Администратор', userRole: 'admin', action: 'Создание пользователя', entity: 'Пользователи', details: 'Создан новый аккаунт куратора: Смирнова Е.В.', ipAddress: '192.168.1.100' },
-  { id: 2, timestamp: '25.01.2026 14:15:10', user: 'Куратор Иванова М.П.', userRole: 'curator', action: 'Одобрение заявки', entity: 'Достижения', details: 'Одобрена заявка Иванова И.И. на достижение "Всероссийская олимпиада по математике"' },
-  { id: 3, timestamp: '25.01.2026 13:45:33', user: 'Иванов Иван Иванович', userRole: 'student', action: 'Создание заявки', entity: 'Достижения', details: 'Создана заявка на достижение "Всероссийская олимпиада по математике"' },
-  { id: 4, timestamp: '25.01.2026 13:20:15', user: 'Куратор Петров А.В.', userRole: 'curator', action: 'Отклонение заявки', entity: 'Достижения', details: 'Отклонена заявка Сидорова А.П. - требуется справка от руководителя' },
-  { id: 5, timestamp: '25.01.2026 12:00:00', user: 'Администратор', userRole: 'admin', action: 'Обновление настроек', entity: 'Система', details: 'Обновлена система оценивания достижений' },
-  { id: 6, timestamp: '25.01.2026 11:30:45', user: 'Петрова Мария Сергеевна', userRole: 'student', action: 'Редактирование профиля', entity: 'Профиль', details: 'Обновлена контактная информация' },
-  { id: 7, timestamp: '25.01.2026 10:15:22', user: 'Администратор', userRole: 'admin', action: 'Создание резервной копии', entity: 'Система', details: 'Создана резервная копия базы данных (2.4 ГБ)' },
-  { id: 8, timestamp: '25.01.2026 09:45:10', user: 'Куратор Иванова М.П.', userRole: 'curator', action: 'Одобрение заявки', entity: 'Достижения', details: 'Одобрена заявка Новикова Д.А. на достижение "Защита проекта по информатике"' },
-];
+
 
 export function AuditLogScreen() {
-  const [logs] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOG);
+  const { auditLogs } = useBackendState();
+  const logs = useMemo(() => auditLogs, [auditLogs]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterAction, setFilterAction] = useState<string>('all');
