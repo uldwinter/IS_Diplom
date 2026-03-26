@@ -26,6 +26,12 @@ if (resolvedCurrentUserMatches.length > 1) {
   process.exit(1);
 }
 
+const deprecatedCurrentUserState = app.match(/const\s*\[\s*currentUser\s*,\s*setCurrentUser\s*\]\s*=\s*useState/g) ?? [];
+if (deprecatedCurrentUserState.length > 0) {
+  console.error('App integrity check failed: deprecated local currentUser state declaration detected. Use resolvedCurrentUser from store.');
+  process.exit(1);
+}
+
 const conflictRegexes = [/^<{7}/m, /^={7}/m, /^>{7}/m];
 const hasConflictMarkerInApp = conflictRegexes.some((re) => re.test(app));
 if (hasConflictMarkerInApp) {
