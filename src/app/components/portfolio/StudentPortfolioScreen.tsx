@@ -3,48 +3,68 @@ import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Progress } from '@/app/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Award, TrendingUp, Calendar, Download, Share2, User, Layers } from 'lucide-react';
 import { useSections } from '@/app/components/sections/SectionsContext';
-
-// Mock данные для портфолио
-const studentProfile = {
-  id: 1,
-  lastName: 'Иванов',
-  firstName: 'Иван',
-  middleName: 'Иванович',
-  class: '10-1',
-  totalPoints: 267,
-  rank: 1,
-  avatar: 'ИИ',
-};
-
-const achievementsData = [
-  { category: 'Учебные', count: 5, points: 165, color: '#3b82f6' },
-  { category: 'Внеурочные', count: 4, points: 62, color: '#10b981' },
-  { category: 'Проектные', count: 3, points: 40, color: '#8b5cf6' },
-];
-
-const monthlyProgress = [
-  { month: 'Сен', points: 35 },
-  { month: 'Окт', points: 50 },
-  { month: 'Ноя', points: 72 },
-  { month: 'Дек', points: 45 },
-  { month: 'Янв', points: 65 },
-];
-
-const recentAchievements = [
-  { id: 1, name: 'Всероссийская олимпиада по математике', category: 'Учебные', level: 'Региональный', result: 'Призёр', points: 40, date: '15.01.2026' },
-  { id: 2, name: 'Защита проекта по информатике', category: 'Проектная деятельность', level: '-', result: 'Отлично', points: 40, date: '19.01.2026' },
-  { id: 3, name: 'Олимпиада по информатике', category: 'Учебные', level: 'Школьный', result: 'Победитель', points: 10, date: '10.01.2026' },
-  { id: 4, name: 'Участие в волонтёрской акции', category: 'Внеурочная', level: '-', result: '25 часов', points: 25, date: '18.01.2026' },
-  { id: 5, name: 'Региональный конкурс по физике', category: 'Учебные', level: 'Региональный', result: 'Призёр', points: 25, date: '05.01.2026' },
-];
+import { getCurrentUser, useBackendState } from '@/app/backend/store';
+import { toast } from 'sonner';
 
 export function StudentPortfolioScreen() {
+  const { achievements } = useBackendState();
+  const currentUser = getCurrentUser();
   const { getStudentSections } = useSections();
-  const mySections = getStudentSections(1); // Mock student ID 1
+  const mySections = getStudentSections(currentUser?.id ?? 0);
+  const myAchievements = achievements
+    .filter((a) => a.studentUserId === currentUser?.id && a.status === 'approved')
+    .sort((a, b) => b.id - a.id);
+
+  const [lastName = '', firstName = '', middleName = ''] = (currentUser?.name ?? '').split(' ');
+  const totalPoints = myAchievements.reduce((sum, a) => sum + a.expectedPoints, 0);
+  const avatar = `${lastName[0] ?? ''}${firstName[0] ?? ''}`.toUpperCase();
+
+  const categorySource = [
+    { key: 'Учебные достижения', label: 'Учебные', color: '#3b82f6' },
+    { key: 'Внеурочная деятельность', label: 'Внеурочные', color: '#10b981' },
+    { key: 'Проектная деятельность', label: 'Проектные', color: '#8b5cf6' },
+  ];
+  const achievementsData = categorySource
+    .map((c) => {
+      const list = myAchievements.filter((a) => a.category === c.key);
+      return { category: c.label, count: list.length, points: list.reduce((s, a) => s + a.expectedPoints, 0), color: c.color };
+    })
+    .filter((c) => c.count > 0);
+
+  const monthlyMap = new Map<string, number>();
+  myAchievements.forEach((a) => {
+    const [day, month, year] = a.date.split('.');
+    const key = month && year ? `${month}.${year}` : a.date;
+    monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + a.expectedPoints);
+  });
+  const monthlyProgress = Array.from(monthlyMap.entries()).map(([month, points]) => ({ month, points }));
+  const recentAchievements = myAchievements.slice(0, 10).map((a) => ({
+    id: a.id,
+    name: a.achievementName,
+    category: a.category,
+    level: a.level,
+    result: a.result,
+    points: a.expectedPoints,
+    date: a.date,
+  }));
+
+  const handleDownloadPdf = () => {
+    window.print();
+    toast.success('Окно печати открыто. Сохраните как PDF.');
+  };
+
+  const handleShare = async () => {
+    const text = `Портфолио: ${currentUser?.name ?? 'Ученик'}, баллы: ${totalPoints}`;
+    if (navigator.share) {
+      await navigator.share({ title: 'Портфолио учащегося', text });
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    toast.success('Ссылка/данные портфолио скопированы');
+  };
 
   return (
     <div className="space-y-6">
@@ -55,42 +75,42 @@ export function StudentPortfolioScreen() {
             <div className="flex items-start gap-6">
               <Avatar className="w-24 h-24 text-2xl">
                 <AvatarFallback className="bg-blue-600 text-white">
-                  {studentProfile.avatar}
+                  {avatar || 'У'}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                  {studentProfile.lastName} {studentProfile.firstName} {studentProfile.middleName}
+                  {currentUser?.name ?? 'Неизвестный ученик'}
                 </h2>
                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
                   <span className="flex items-center gap-1">
                     <User className="w-4 h-4" />
-                    {studentProfile.class} класс
+                    {currentUser?.class ?? '—'} класс
                   </span>
-                  <Badge className="bg-yellow-500">🏆 {studentProfile.rank} место в рейтинге</Badge>
+                  <Badge className="bg-yellow-500">🏆 Портфолио учащегося</Badge>
                 </div>
                 <div className="grid grid-cols-3 gap-6">
                   <div>
                     <p className="text-sm text-gray-600">Всего баллов</p>
-                    <p className="text-2xl font-bold text-blue-700">{studentProfile.totalPoints}</p>
+                    <p className="text-2xl font-bold text-blue-700">{totalPoints}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Достижений</p>
-                    <p className="text-2xl font-bold text-gray-900">12</p>
+                    <p className="text-2xl font-bold text-gray-900">{myAchievements.length}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Категорий</p>
-                    <p className="text-2xl font-bold text-gray-900">3</p>
+                    <p className="text-2xl font-bold text-gray-900">{achievementsData.length}</p>
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" onClick={handleShare}>
                 <Share2 className="w-4 h-4" />
                 Поделиться
               </Button>
-              <Button className="gap-2">
+              <Button className="gap-2" onClick={handleDownloadPdf}>
                 <Download className="w-4 h-4" />
                 Скачать PDF
               </Button>
@@ -165,7 +185,7 @@ export function StudentPortfolioScreen() {
               </p>
               <p className="text-sm text-gray-600">баллов</p>
               <Progress 
-                value={(category.points / studentProfile.totalPoints) * 100} 
+                value={totalPoints > 0 ? (category.points / totalPoints) * 100 : 0}
                 className="mt-3"
               />
             </CardContent>
