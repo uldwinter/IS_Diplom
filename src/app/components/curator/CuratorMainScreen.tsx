@@ -1,24 +1,26 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { Badge } from '@/app/components/ui/badge';
 import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { useApp } from '@/app/lib/AppContext';
 
 interface CuratorMainScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 export function CuratorMainScreen({ onNavigate }: CuratorMainScreenProps) {
+  const { achievements, sectionApplications, auditLog, currentUser } = useApp();
+
   const stats = [
-    { label: 'Всего заявок', value: '47', icon: AlertCircle, color: 'bg-blue-50 text-blue-600' },
-    { label: 'На проверке', value: '18', icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
-    { label: 'Одобрено сегодня', value: '12', icon: CheckCircle, color: 'bg-green-50 text-green-600' },
-    { label: 'Отклонено сегодня', value: '3', icon: XCircle, color: 'bg-red-50 text-red-600' },
+    { label: 'Всего заявок', value: String(achievements.length), icon: AlertCircle, color: 'bg-blue-50 text-blue-600' },
+    { label: 'На проверке', value: String(achievements.filter(a => a.status === 'pending').length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
+    { label: 'Одобрено', value: String(achievements.filter(a => a.status === 'approved').length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
+    { label: 'Отклонено', value: String(achievements.filter(a => a.status === 'rejected').length), icon: XCircle, color: 'bg-red-50 text-red-600' },
   ];
 
-  const recentActions = [
-    { id: 1, student: 'Иванов Иван Иванович, 10-1', achievement: 'Всероссийская олимпиада по математике', action: 'approved', time: '10:30' },
-    { id: 2, student: 'Петрова Мария Сергеевна, 10-1', achievement: 'Участие в волонтёрской акции', action: 'approved', time: '11:15' },
-    { id: 3, student: 'Сидоров Алексей Петрович, 10-2', achievement: 'Школьный театр', action: 'rejected', time: '12:00' },
-    { id: 4, student: 'Новиков Дмитрий Александрович, 9-3', achievement: 'Защита проекта', action: 'approved', time: '14:30' },
-  ];
+  const recentActions = auditLog
+    .filter(l => l.action.includes('достижени') || l.action.includes('заявк'))
+    .slice(0, 5);
 
   return (
     <div className="space-y-8">
