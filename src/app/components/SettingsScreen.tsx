@@ -41,6 +41,16 @@ export function SettingsScreen() {
   }, [currentUser?.id]);
   useEffect(() => { setRulesDraft(scoringRules); }, [scoringRules]);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    const s = getUserSettings(currentUser.id);
+    setName(currentUser.name ?? '');
+    setEmail(currentUser.email ?? '');
+    if (!s) return;
+    setPosition(s.position); setPhone(s.phone); setRowsPerPage(s.rowsPerPage); setDateFormat(s.dateFormat); setShowTooltips(s.showTooltips); setSaveFilters(s.saveFilters); setNotifications(s.notifications);
+  }, [currentUser?.id]);
+  useEffect(() => { setRulesDraft(scoringRules); }, [scoringRules]);
+
   const handleSaveProfile = () => {
     if (!currentUser || !name.trim() || !email.trim()) return toast.error('Заполните обязательные поля: ФИО и Email');
     updateCurrentUserProfile({ name, email, phone, position });

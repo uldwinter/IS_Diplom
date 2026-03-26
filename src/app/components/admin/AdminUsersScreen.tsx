@@ -7,7 +7,7 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
-import { Plus, Search, Edit, Trash2, ShieldCheck, UserCheck, GraduationCap, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ShieldCheck, UserCheck, GraduationCap, AlertTriangle, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { addUser, deleteUser, updateUser, useBackendState, UserRecord } from '@/app/backend/store';
 
