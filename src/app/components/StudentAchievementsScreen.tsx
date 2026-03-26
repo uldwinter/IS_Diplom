@@ -31,7 +31,10 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
   }
 
   const user = users.find((u) => u.id === student.id);
-  
+  const studentAchievements = achievements.filter((a) => a.studentUserId === student.id && a.status === 'approved');
+  const academic = studentAchievements.filter((a) => a.category === 'Учебные достижения');
+  const extracurricular = studentAchievements.filter((a) => a.category === 'Внеурочная деятельность');
+  const projectAchievementsList = studentAchievements.filter((a) => a.category === 'Проектная деятельность');
 
   return (
     <div className="space-y-6">

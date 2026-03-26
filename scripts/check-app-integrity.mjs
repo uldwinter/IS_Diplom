@@ -15,8 +15,8 @@ const criticalStateDecls = [
 for (const stateDecl of criticalStateDecls) {
   const escaped = stateDecl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const matches = app.match(new RegExp(`const\\s*\\[\\s*${escaped}\\s*\\]\\s*=\\s*useState`, 'g')) ?? [];
-  if (matches.length > 1) {
-    console.error(`App integrity check failed: duplicate state declaration for "${stateDecl}", found ${matches.length}`);
+  if (matches.length !== 1) {
+    console.error(`App integrity check failed: expected exactly 1 state declaration for "${stateDecl}", found ${matches.length}`);
     process.exit(1);
   }
 }
