@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "npm run check:app && vite build",
     "dev": "vite",
     "check:app": "node scripts/check-app-integrity.mjs",
     "check:contracts": "node scripts/check-contracts.mjs",
