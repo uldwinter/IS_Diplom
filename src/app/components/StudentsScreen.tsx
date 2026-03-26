@@ -19,18 +19,22 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
-  // Фильтрация учеников
   const filteredStudents = students.filter((student) => {
+    const fullName = `${student.lastName} ${student.firstName} ${student.middleName}`;
     const matchesSearch =
       searchQuery === '' ||
-      student.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.middleName.toLowerCase().includes(searchQuery.toLowerCase());
+      fullName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesClass = classFilter === 'all' || student.class === classFilter;
     return matchesSearch && matchesClass;
   });
 
-  // Получаем уникальные классы для фильтра
+  // Compute approved points per student for summary
+  const getStudentPoints = (studentId: number) => {
+    return achievements
+      .filter(a => a.studentId === studentId && a.status === 'approved')
+      .reduce((sum, a) => sum + a.points, 0);
+  };
+
   const uniqueClasses = Array.from(new Set(students.map((s) => s.class))).sort();
   const approvedByStudent = new Map<number, number>();
   const pendingByStudent = new Map<number, number>();
@@ -52,7 +56,6 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
         <p className="text-gray-600">Список учащихся образовательной организации</p>
       </div>
 
-      {/* Поиск и фильтры */}
       <Card>
         <CardContent className="p-4">
           <div className="flex gap-4">
@@ -73,9 +76,7 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
               <SelectContent>
                 <SelectItem value="all">Все классы</SelectItem>
                 {uniqueClasses.map((cls) => (
-                  <SelectItem key={cls} value={cls}>
-                    {cls} класс
-                  </SelectItem>
+                  <SelectItem key={cls} value={cls}>{cls} класс</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -111,7 +112,7 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Реестр учащихся</CardTitle>
+          <CardTitle>Реестр учащихся ({filteredStudents.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="table" className="w-full">
