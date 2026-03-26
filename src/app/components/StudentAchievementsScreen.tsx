@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { Badge } from '@/app/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
@@ -16,6 +17,14 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
   const student = getStudents().find((s) => s.id === studentId);
   const { getStudentSections } = useSections();
   const studentSections = getStudentSections(studentId);
+  const allAchievements = achievements.filter(a => a.studentId === studentId);
+
+  const academic = allAchievements.filter(a => a.category === 'Учебные достижения');
+  const extracurricular = allAchievements.filter(a => a.category === 'Внеурочная деятельность');
+  const projectAchievements = allAchievements.filter(a => a.category === 'Проектная деятельность');
+  const other = allAchievements.filter(a => !['Учебные достижения', 'Внеурочная деятельность', 'Проектная деятельность'].includes(a.category));
+
+  const approvedPoints = allAchievements.filter(a => a.status === 'approved').reduce((sum, a) => sum + a.points, 0);
 
   if (!student) {
     return <div className="space-y-6"><Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="w-4 h-4" />Назад</Button><p>Учащийся не найден</p></div>;
@@ -34,10 +43,10 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
 
       <Tabs defaultValue="academic" className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-gray-100">
-          <TabsTrigger value="academic">Учебные достижения</TabsTrigger>
-          <TabsTrigger value="extracurricular">Внеурочная деятельность</TabsTrigger>
-          <TabsTrigger value="projects">Проектная деятельность</TabsTrigger>
-          <TabsTrigger value="sections">Секции</TabsTrigger>
+          <TabsTrigger value="academic">Учебные ({academic.length})</TabsTrigger>
+          <TabsTrigger value="extracurricular">Внеурочная ({extracurricular.length})</TabsTrigger>
+          <TabsTrigger value="projects">Проекты ({projects.length})</TabsTrigger>
+          <TabsTrigger value="sections">Секции ({studentSections.length})</TabsTrigger>
         </TabsList>
 
         {[
