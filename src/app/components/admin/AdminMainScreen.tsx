@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
 import { Users, Database, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBackendState } from '@/app/backend/store';

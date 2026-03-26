@@ -14,6 +14,9 @@ interface LoginScreenProps {
 export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
   const [loginValue, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
