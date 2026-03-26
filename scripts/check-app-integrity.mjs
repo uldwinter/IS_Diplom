@@ -9,16 +9,27 @@ const criticalStateDecls = [
   'userRole, setUserRole',
   'currentScreen, setCurrentScreen',
   'selectedStudentId, setSelectedStudentId',
-  'currentUser, setCurrentUser',
 ];
 
 for (const stateDecl of criticalStateDecls) {
   const escaped = stateDecl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const matches = app.match(new RegExp(`const \\[${escaped}\\]`, 'g')) ?? [];
-  if (matches.length !== 1) {
-    console.error(`App integrity check failed: expected exactly 1 declaration for "${stateDecl}", found ${matches.length}`);
+  const matches = app.match(new RegExp(`const\\s*\\[\\s*${escaped}\\s*\\]\\s*=\\s*useState`, 'g')) ?? [];
+  if (matches.length > 1) {
+    console.error(`App integrity check failed: duplicate state declaration for "${stateDecl}", found ${matches.length}`);
     process.exit(1);
   }
+}
+
+const resolvedCurrentUserMatches = app.match(/const resolvedCurrentUser = getCurrentUser\(\);/g) ?? [];
+if (resolvedCurrentUserMatches.length > 1) {
+  console.error(`App integrity check failed: duplicate resolvedCurrentUser declaration, found ${resolvedCurrentUserMatches.length}`);
+  process.exit(1);
+}
+
+const deprecatedCurrentUserState = app.match(/const\s*\[\s*currentUser\s*,\s*setCurrentUser\s*\]\s*=\s*useState/g) ?? [];
+if (deprecatedCurrentUserState.length > 0) {
+  console.error('App integrity check failed: deprecated local currentUser state declaration detected. Use resolvedCurrentUser from store.');
+  process.exit(1);
 }
 
 const conflictRegexes = [/^<{7}/m, /^={7}/m, /^>{7}/m];
