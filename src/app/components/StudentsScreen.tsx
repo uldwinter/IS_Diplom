@@ -17,18 +17,22 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
-  // Фильтрация учеников
   const filteredStudents = students.filter((student) => {
+    const fullName = `${student.lastName} ${student.firstName} ${student.middleName}`;
     const matchesSearch =
       searchQuery === '' ||
-      student.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.middleName.toLowerCase().includes(searchQuery.toLowerCase());
+      fullName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesClass = classFilter === 'all' || student.class === classFilter;
     return matchesSearch && matchesClass;
   });
 
-  // Получаем уникальные классы для фильтра
+  // Compute approved points per student for summary
+  const getStudentPoints = (studentId: number) => {
+    return achievements
+      .filter(a => a.studentId === studentId && a.status === 'approved')
+      .reduce((sum, a) => sum + a.points, 0);
+  };
+
   const uniqueClasses = Array.from(new Set(students.map((s) => s.class))).sort();
 
   return (
@@ -38,7 +42,6 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
         <p className="text-gray-600">Список учащихся образовательной организации</p>
       </div>
 
-      {/* Поиск и фильтры */}
       <Card>
         <CardContent className="p-4">
           <div className="flex gap-4">
@@ -59,9 +62,7 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
               <SelectContent>
                 <SelectItem value="all">Все классы</SelectItem>
                 {uniqueClasses.map((cls) => (
-                  <SelectItem key={cls} value={cls}>
-                    {cls} класс
-                  </SelectItem>
+                  <SelectItem key={cls} value={cls}>{cls} класс</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -76,7 +77,7 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Реестр учащихся</CardTitle>
+          <CardTitle>Реестр учащихся ({filteredStudents.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="border rounded-md">
@@ -88,13 +89,14 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
                   <TableHead>Имя</TableHead>
                   <TableHead>Отчество</TableHead>
                   <TableHead>Класс</TableHead>
-                  <TableHead className="w-40">Действия</TableHead>
+                  <TableHead className="text-center">Баллы</TableHead>
+                  <TableHead className="w-48">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredStudents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
                       Учащиеся не найдены
                     </TableCell>
                   </TableRow>
@@ -102,10 +104,13 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
                   filteredStudents.map((student, index) => (
                     <TableRow key={student.id} className="hover:bg-gray-50">
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>{student.lastName}</TableCell>
+                      <TableCell className="font-medium">{student.lastName}</TableCell>
                       <TableCell>{student.firstName}</TableCell>
                       <TableCell>{student.middleName}</TableCell>
                       <TableCell>{student.class}</TableCell>
+                      <TableCell className="text-center">
+                        <span className="font-semibold text-blue-700">{getStudentPoints(student.id)}</span>
+                      </TableCell>
                       <TableCell>
                         <Button
                           variant="outline"
