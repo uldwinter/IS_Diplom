@@ -2,32 +2,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Award, Clock, CheckCircle, XCircle, TrendingUp, Plus, Users, Newspaper } from 'lucide-react';
-import { useApp } from '@/app/lib/AppContext';
+import { getCurrentUser, useBackendState } from '@/app/backend/store';
 
 interface StudentMainScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
-  const { currentUser, achievements } = useApp();
-
-  const studentId = currentUser?.studentId ?? 0;
-  const myAchievements = achievements.filter(a => a.studentId === studentId);
+  const { achievements } = useBackendState();
+  const currentUser = getCurrentUser();
+  const myAchievements = achievements.filter((a) => a.studentUserId === currentUser?.id);
+  const approved = myAchievements.filter((a) => a.status === 'approved');
+  const pending = myAchievements.filter((a) => a.status === 'pending');
+  const rejected = myAchievements.filter((a) => a.status === 'rejected');
+  const totalPoints = approved.reduce((sum, a) => sum + a.expectedPoints, 0);
 
   const studentInfo = {
     name: currentUser?.name ?? 'Ученик',
-    class: currentUser?.class ?? '',
-    totalPoints: myAchievements.filter(a => a.status === 'approved').reduce((s, a) => s + a.points, 0),
+    class: currentUser?.class ?? '—',
+    totalPoints,
+    rank: 1,
   };
 
   const stats = [
     { label: 'Всего достижений', value: String(myAchievements.length), icon: Award, color: 'bg-blue-50 text-blue-600' },
-    { label: 'На проверке', value: String(myAchievements.filter(a => a.status === 'pending').length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
-    { label: 'Одобрено', value: String(myAchievements.filter(a => a.status === 'approved').length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
-    { label: 'Отклонено', value: String(myAchievements.filter(a => a.status === 'rejected').length), icon: XCircle, color: 'bg-red-50 text-red-600' },
+    { label: 'На проверке', value: String(pending.length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
+    { label: 'Одобрено', value: String(approved.length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
+    { label: 'Отклонено', value: String(rejected.length), icon: XCircle, color: 'bg-red-50 text-red-600' },
   ];
 
-  const recentAchievements = myAchievements.slice(0, 5);
+  const recentAchievements = myAchievements
+    .slice()
+    .sort((a, b) => b.id - a.id)
+    .slice(0, 5)
+    .map((a) => ({ id: a.id, name: a.achievementName, status: a.status, points: a.expectedPoints, date: a.date }));
 
   const getStatusBadge = (status: string) => {
     if (status === 'approved') return <Badge className="bg-green-600">Одобрено</Badge>;
