@@ -4,8 +4,12 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite"
+    "build": "npm run check:app && vite build",
+    "dev": "vite",
+    "check:app": "node scripts/check-app-integrity.mjs",
+    "check:contracts": "node scripts/check-contracts.mjs",
+    "check:store": "node scripts/check-store-hardening.mjs",
+    "check:types": "tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
