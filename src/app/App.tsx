@@ -42,11 +42,16 @@ type UserRole = 'admin' | 'curator' | 'student' | null;
 type Screen = string;
 
 function AppContent() {
+  const [appState, setAppState] = useState<AppState>('login');
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [currentScreen, setCurrentScreen] = useState<Screen>('main');
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const { currentUser, logout, addAuditEntry } = useApp();
   const [currentScreen, setCurrentScreen] = useState<Screen>('main');
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const resolvedCurrentUser = getCurrentUser();
-
+  
+  
   useEffect(() => {
     const restored = getCurrentUser();
     if (restored) {
