@@ -6,13 +6,14 @@ import { Label } from '@/app/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { UserPlus, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { submitStudentRegistrationWithFallback } from '@/app/backend/store';
+import { submitStudentRegistrationWithFallback, useBackendState } from '@/app/backend/store';
 
 interface StudentRegistrationScreenProps {
   onBackToLogin: () => void;
 }
 
 export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistrationScreenProps) {
+  const { classCatalog } = useBackendState();
   const [formData, setFormData] = useState({
     lastName: '',
     firstName: '',
@@ -39,11 +40,7 @@ export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistration
     }
 
     setIsSubmitted(true);
-    if (result.source === 'local') {
-      toast.success('Заявка сохранена локально (backend временно недоступен)');
-    } else {
-      toast.success('Заявка на регистрацию отправлена!');
-    }
+    toast.success('Заявка на регистрацию отправлена!');
   };
 
   const handleChange = (field: string, value: string) => {
@@ -127,7 +124,7 @@ export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistration
                       <SelectValue placeholder="Выберите класс" />
                     </SelectTrigger>
                     <SelectContent>
-                      {['5-1', '5-2', '5-3', '6-1', '6-2', '6-3', '7-1', '7-2', '7-3', '8-1', '8-2', '8-3', '9-1', '9-2', '9-3', '10-1', '10-2', '10-3', '11-1', '11-2', '11-3'].map((cls) => (
+                      {classCatalog.map((cls) => (
                         <SelectItem key={cls} value={cls}>{cls}</SelectItem>
                       ))}
                     </SelectContent>

@@ -165,6 +165,7 @@ interface BackendState {
   sectionMembers: SectionMemberRecord[];
   userSettings: UserSettingsRecord[];
   scoringRules: Record<string, Record<string, number>>;
+  classCatalog: string[];
 }
 
 const STORAGE_KEY = 'gifted-children-backend-v2';
@@ -260,6 +261,7 @@ const INITIAL_STATE: BackendState = {
     { userId: 3, position: 'Ученик', phone: '+7 (900) 555-66-77', rowsPerPage: '10', dateFormat: 'dd.mm.yyyy', showTooltips: true, saveFilters: true, notifications: true },
   ],
   scoringRules: DEFAULT_SCORING_RULES,
+  classCatalog: ['5-1', '5-2', '5-3', '6-1', '6-2', '6-3', '7-1', '7-2', '7-3', '8-1', '8-2', '8-3', '9-1', '9-2', '9-3', '10-1', '10-2', '10-3', '11-1', '11-2', '11-3'],
 };
 
 let state = loadState();
@@ -291,6 +293,7 @@ function loadState(): BackendState {
       sectionMembers: parsed.sectionMembers ?? INITIAL_STATE.sectionMembers,
       userSettings: parsed.userSettings ?? INITIAL_STATE.userSettings,
       scoringRules: parsed.scoringRules ?? INITIAL_STATE.scoringRules,
+      classCatalog: parsed.classCatalog ?? INITIAL_STATE.classCatalog,
     };
   } catch {
     return INITIAL_STATE;
@@ -444,6 +447,23 @@ export async function submitStudentRegistrationWithFallback(payload: Omit<Regist
 
   const localResult = submitStudentRegistration(payload);
   return { ...localResult, source: 'local' as const };
+}
+
+export function addClassToCatalog(className: string): OperationResult {
+  const normalized = className.trim();
+  if (!normalized) return { ok: false, message: 'Введите название класса' };
+  if (state.classCatalog.some((c) => c.toLowerCase() === normalized.toLowerCase())) {
+    return { ok: false, message: 'Такой класс уже существует' };
+  }
+  mutate((prev) => ({ ...prev, classCatalog: [...prev.classCatalog, normalized].sort() }));
+  return { ok: true };
+}
+
+export function removeClassFromCatalog(className: string): OperationResult {
+  const inUse = state.users.some((u) => u.role === 'student' && u.class === className);
+  if (inUse) return { ok: false, message: 'Нельзя удалить класс, в котором есть учащиеся' };
+  mutate((prev) => ({ ...prev, classCatalog: prev.classCatalog.filter((c) => c !== className) }));
+  return { ok: true };
 }
 
 export function processRegistration(requestId: number, action: 'approve' | 'reject', comment: string) {
