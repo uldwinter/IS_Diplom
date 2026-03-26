@@ -7,9 +7,10 @@ interface StudentLayoutProps {
   currentScreen: string;
   onNavigate: (screen: string) => void;
   onLogout: () => void;
+  userId?: number;
 }
 
-export function StudentLayout({ children, currentScreen, onNavigate, onLogout }: StudentLayoutProps) {
+export function StudentLayout({ children, currentScreen, onNavigate, onLogout, userId }: StudentLayoutProps) {
   const menuItems = [
     { id: 'main', label: 'Главная', icon: Home },
     { id: 'my-achievements', label: 'Мои достижения', icon: Award },
@@ -69,7 +70,7 @@ export function StudentLayout({ children, currentScreen, onNavigate, onLogout }:
             <h1 className="text-xl text-gray-900 font-semibold truncate max-w-3xl">
               Банк достижений учащихся МАОУ ОЦ2 города Челябинск
             </h1>
-            <NotificationCenter userRole="student" />
+            <NotificationCenter userRole="student" userId={userId} />
           </div>
         </header>
 

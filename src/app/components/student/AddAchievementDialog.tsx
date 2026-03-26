@@ -14,8 +14,9 @@ interface NewAchievement {
   level: string;
   result: string;
   points: number;
-  status: 'pending';
   date: string;
+  description?: string;
+  documents?: string[];
 }
 
 interface AddAchievementDialogProps {
@@ -31,7 +32,7 @@ const CATEGORY_POINTS: Record<string, Record<string, number>> = {
 };
 
 export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchievementDialogProps) {
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<Array<{ name: string; payload: string }>>([]);
   const [category, setCategory] = useState('');
   const [achievementName, setAchievementName] = useState('');
   const [level, setLevel] = useState('');
@@ -44,8 +45,25 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
     return CATEGORY_POINTS[category]?.[level] || 15;
   };
 
-  const handleAddFile = () => {
-    setFiles([...files, `Документ_${files.length + 1}.pdf`]);
+  const fileToPayload = (file: File) =>
+    new Promise<{ name: string; payload: string }>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: file.name, payload: `upload::${file.name}::${String(reader.result ?? '')}` });
+      reader.onerror = () => reject(new Error(`Не удалось прочитать файл: ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+
+  const handleAddFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files ?? []);
+    if (selected.length === 0) return;
+    try {
+      const loaded = await Promise.all(selected.map(fileToPayload));
+      setFiles((prev) => [...prev, ...loaded]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Ошибка загрузки файла');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   const handleRemoveFile = (index: number) => {
@@ -78,8 +96,9 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
       level: level || '-',
       result: result || '-',
       points,
-      status: 'pending',
       date: dateFormatted,
+      description: description || undefined,
+      documents: files.length ? files.map((f) => f.payload) : undefined,
     };
 
     if (onAdd) {
@@ -200,9 +219,7 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
               <p className="text-sm text-gray-600 mb-2">
                 Загрузите грамоты, сертификаты, дипломы
               </p>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddFile}>
-                Выбрать файлы
-              </Button>
+              <Input type="file" multiple onChange={handleAddFile} />
               <p className="text-xs text-gray-500 mt-2">
                 Поддерживаемые форматы: PDF, JPG, PNG (макс. 10 МБ)
               </p>
@@ -212,7 +229,7 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
               <div className="space-y-2 mt-3">
                 {files.map((file, index) => (
                   <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                    <span className="text-sm text-gray-700">{file}</span>
+                    <span className="text-sm text-gray-700">{file.name}</span>
                     <Button
                       type="button"
                       variant="ghost"
