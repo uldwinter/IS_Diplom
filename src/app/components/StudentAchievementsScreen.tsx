@@ -34,7 +34,7 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
   const studentAchievements = achievements.filter((a) => a.studentUserId === student.id && a.status === 'approved');
   const academic = studentAchievements.filter((a) => a.category === 'Учебные достижения');
   const extracurricular = studentAchievements.filter((a) => a.category === 'Внеурочная деятельность');
-  const projects = studentAchievements.filter((a) => a.category === 'Проектная деятельность');
+  const projectAchievements = studentAchievements.filter((a) => a.category === 'Проектная деятельность');
 
   return (
     <div className="space-y-6">
@@ -52,7 +52,7 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
         {[
           { tab: 'academic', title: 'Учебные достижения', list: academic },
           { tab: 'extracurricular', title: 'Внеурочная деятельность', list: extracurricular },
-          { tab: 'projects', title: 'Проектная деятельность', list: projects },
+          { tab: 'projects', title: 'Проектная деятельность', list: projectAchievements },
         ].map(({ tab, title, list }) => (
           <TabsContent key={tab} value={tab} className="mt-6">
             <Card><CardHeader><CardTitle>{title}</CardTitle></CardHeader><CardContent><div className="border rounded-md"><Table><TableHeader><TableRow className="bg-gray-50"><TableHead>№</TableHead><TableHead>Наименование</TableHead><TableHead>Уровень</TableHead><TableHead>Результат</TableHead><TableHead>Дата</TableHead><TableHead>Баллы</TableHead></TableRow></TableHeader><TableBody>{list.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-4 text-gray-500">Нет подтвержденных достижений</TableCell></TableRow> : list.map((a, i) => <TableRow key={a.id}><TableCell>{i + 1}</TableCell><TableCell>{a.achievementName}</TableCell><TableCell>{a.level}</TableCell><TableCell>{a.result}</TableCell><TableCell>{a.date}</TableCell><TableCell>{a.expectedPoints}</TableCell></TableRow>)}</TableBody></Table></div></CardContent></Card>

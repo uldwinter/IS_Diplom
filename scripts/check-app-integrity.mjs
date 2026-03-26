@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 const app = fs.readFileSync('src/app/App.tsx', 'utf8');
+const studentAchievementsScreen = fs.readFileSync('src/app/components/StudentAchievementsScreen.tsx', 'utf8');
 const root = process.cwd();
 
 const criticalStateDecls = [
@@ -42,6 +43,12 @@ if (hasConflictMarkerInApp) {
 const appContentMatches = app.match(/function AppContent\(/g) ?? [];
 if (appContentMatches.length !== 1) {
   console.error(`App integrity check failed: expected exactly 1 AppContent function, found ${appContentMatches.length}`);
+  process.exit(1);
+}
+
+const deprecatedProjectsConst = studentAchievementsScreen.match(/const\s+projects\s*=/g) ?? [];
+if (deprecatedProjectsConst.length > 0) {
+  console.error('App integrity check failed: deprecated `const projects = ...` declaration detected in StudentAchievementsScreen. Use projectAchievements naming.');
   process.exit(1);
 }
 
