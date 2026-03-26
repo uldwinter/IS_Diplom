@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
-import { Plus, Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { Plus, Clock, CheckCircle, XCircle, FileText, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AddAchievementDialog } from './AddAchievementDialog';
 import { submitAchievement, useBackendState } from '@/app/backend/store';
 import { toast } from 'sonner';

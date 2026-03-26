@@ -17,10 +17,11 @@ export function PendingRegistrationsScreen() {
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [comment, setComment] = useState('');
 
-  const pendingCount = registrations.filter((r) => r.status === 'pending').length;
+  const pendingList = registrations.filter((r) => r.status === 'pending');
+  const pendingCount = pendingList.length;
 
-  const handleViewDetails = (registration: RegistrationRequest) => {
-    setSelectedRegistration(registration);
+  const handleViewDetails = (reg: PendingRegistration) => {
+    setSelected(reg);
     setIsDialogOpen(true);
     setActionType(null);
     setComment('');
@@ -33,23 +34,20 @@ export function PendingRegistrationsScreen() {
 
     toast.success(
       actionType === 'approve'
-        ? 'Регистрация одобрена! Ученик добавлен в систему.'
+        ? `Регистрация одобрена! Ученик ${selected.lastName} ${selected.firstName} добавлен в систему.`
         : 'Регистрация отклонена.'
     );
-
     setIsDialogOpen(false);
-    setSelectedRegistration(null);
+    setSelected(null);
     setActionType(null);
     setComment('');
   };
 
-  const pendingRegistrations = registrations.filter((r) => r.status === 'pending');
-
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-semibold text-gray-900 mb-2">Заявки на регистрацию</h2>
-        <p className="text-base text-gray-600">Проверка и подтверждение новых учеников</p>
+        <h2 className="text-2xl text-gray-900 mb-2">Заявки на регистрацию</h2>
+        <p className="text-gray-600">Проверка и подтверждение новых учеников</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
