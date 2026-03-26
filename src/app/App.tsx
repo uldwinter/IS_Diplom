@@ -46,8 +46,8 @@ function AppContent() {
   const [appState, setAppState] = useState<AppState>('login');
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
-  
-  
+  const resolvedCurrentUser = getCurrentUser();
+
   useEffect(() => {
     const restored = getCurrentUser();
     if (restored) {
