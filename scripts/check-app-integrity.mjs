@@ -46,6 +46,18 @@ if (appContentMatches.length !== 1) {
   process.exit(1);
 }
 
+const requiredAdminScreens = [
+  /currentScreen === 'users'/,
+  /currentScreen === 'audit-log'/,
+];
+
+for (const required of requiredAdminScreens) {
+  if (!required.test(app)) {
+    console.error(`App integrity check failed: missing admin route mapping for pattern ${required}`);
+    process.exit(1);
+  }
+}
+
 const deprecatedProjectsConst = studentAchievementsScreen.match(/const\s+projects\s*=/g) ?? [];
 if (deprecatedProjectsConst.length > 0) {
   console.error('App integrity check failed: deprecated `const projects = ...` declaration detected in StudentAchievementsScreen. Use projectAchievements naming.');

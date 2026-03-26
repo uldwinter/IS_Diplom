@@ -7,6 +7,7 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useBackendState } from '@/app/backend/store';
 
 interface NewAchievement {
   name: string;
@@ -25,13 +26,8 @@ interface AddAchievementDialogProps {
   onAdd?: (achievement: NewAchievement) => void;
 }
 
-const CATEGORY_POINTS: Record<string, Record<string, number>> = {
-  'Учебные достижения': { 'Международный': 60, 'Всероссийский': 50, 'Региональный': 40, 'Муниципальный': 20, 'Школьный': 10 },
-  'Проектная деятельность': { 'Международный': 60, 'Всероссийский': 50, 'Региональный': 40, 'Муниципальный': 20, 'Школьный': 40 },
-  'Внеурочная деятельность': { 'Региональный': 30, 'Муниципальный': 25, 'Школьный': 20, '-': 25 },
-};
-
 export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchievementDialogProps) {
+  const { scoringRules } = useBackendState();
   const [files, setFiles] = useState<Array<{ name: string; payload: string }>>([]);
   const [category, setCategory] = useState('');
   const [achievementName, setAchievementName] = useState('');
@@ -42,7 +38,7 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
 
   const calculatePoints = () => {
     if (!category || !level) return 0;
-    return CATEGORY_POINTS[category]?.[level] || 15;
+    return scoringRules[category]?.[level] || 15;
   };
 
   const fileToPayload = (file: File) =>

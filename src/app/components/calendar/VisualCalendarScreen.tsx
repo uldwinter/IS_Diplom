@@ -7,9 +7,9 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { ChevronLeft, ChevronRight, Plus, Clock, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, MapPin, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { addCalendarEvent, useBackendState } from '@/app/backend/store';
+import { addCalendarEvent, deleteCalendarEvent, useBackendState } from '@/app/backend/store';
 
 export function VisualCalendarScreen({ userRole }: { userRole?: 'admin' | 'curator' | 'student' }) {
   const { calendarEvents } = useBackendState();
@@ -52,7 +52,7 @@ export function VisualCalendarScreen({ userRole }: { userRole?: 'admin' | 'curat
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Добавить событие</DialogTitle></DialogHeader><div className="space-y-3"><Label>Название</Label><Input value={newEvent.title} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} /><Label>Дата</Label><Input type="date" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} /><Label>Время</Label><Input type="time" value={newEvent.time} onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })} /><Label>Локация</Label><Input value={newEvent.location} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })} /><Label>Тип</Label><Select value={newEvent.type} onValueChange={(v: any) => setNewEvent({ ...newEvent, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="olympiad">Олимпиада</SelectItem><SelectItem value="competition">Конкурс</SelectItem><SelectItem value="project">Проект</SelectItem><SelectItem value="volunteer">Волонтёрство</SelectItem><SelectItem value="announcement">Объявление</SelectItem></SelectContent></Select><Label>Описание</Label><Textarea value={newEvent.description} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} /><Button onClick={handleAddEvent} className="w-full">Сохранить</Button></div></DialogContent></Dialog>
 
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}><DialogContent><DialogHeader><DialogTitle>События дня</DialogTitle><DialogDescription>{selectedEvents[0]?.date}</DialogDescription></DialogHeader><div className="space-y-3">{selectedEvents.map((e) => <div key={e.id} className="border rounded p-3"><p className="font-medium">{e.title}</p><p className="text-sm text-gray-600 flex items-center gap-1"><Clock className="w-3 h-3" />{e.time}</p><p className="text-sm text-gray-600 flex items-center gap-1"><MapPin className="w-3 h-3" />{e.location}</p></div>)}</div></DialogContent></Dialog>
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}><DialogContent><DialogHeader><DialogTitle>События дня</DialogTitle><DialogDescription>{selectedEvents[0]?.date}</DialogDescription></DialogHeader><div className="space-y-3">{selectedEvents.map((e) => <div key={e.id} className="border rounded p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{e.title}</p><p className="text-sm text-gray-600 flex items-center gap-1"><Clock className="w-3 h-3" />{e.time}</p><p className="text-sm text-gray-600 flex items-center gap-1"><MapPin className="w-3 h-3" />{e.location}</p></div>{canAddEvents && <Button variant="outline" size="sm" className="text-red-600" onClick={() => { deleteCalendarEvent(e.id); setSelectedEvents((prev) => prev.filter((item) => item.id !== e.id)); toast.success('Событие удалено'); }}><Trash2 className="w-4 h-4" /></Button>}</div></div>)}</div></DialogContent></Dialog>
     </div>
   );
 }

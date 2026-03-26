@@ -32,6 +32,8 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
 
   const user = users.find((u) => u.id === student.id);
   const studentAchievements = achievements.filter((a) => a.studentUserId === student.id && a.status === 'approved');
+  const pendingAchievements = achievements.filter((a) => a.studentUserId === student.id && a.status === 'pending');
+  const totalPoints = studentAchievements.reduce((sum, item) => sum + item.expectedPoints, 0);
   const achievementGroups = [
     { tab: 'academic', title: 'Учебные достижения', category: 'Учебные достижения' },
     { tab: 'extracurricular', title: 'Внеурочная деятельность', category: 'Внеурочная деятельность' },
@@ -42,6 +44,28 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
     <div className="space-y-6">
       <div className="flex items-center gap-4"><Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="w-4 h-4" />Назад</Button></div>
       <div><h2 className="text-2xl text-gray-900 mb-1">Индивидуальные достижения учащегося</h2><p className="text-gray-600">{user?.name}, {student.class} класс</p></div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-gray-500">Email</p>
+              <p className="text-sm font-medium text-gray-900">{user?.email ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Подтверждено достижений</p>
+              <p className="text-sm font-medium text-gray-900">{studentAchievements.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">На проверке</p>
+              <p className="text-sm font-medium text-amber-700">{pendingAchievements.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Сумма баллов</p>
+              <p className="text-sm font-medium text-blue-700">{totalPoints}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="academic" className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-gray-100">

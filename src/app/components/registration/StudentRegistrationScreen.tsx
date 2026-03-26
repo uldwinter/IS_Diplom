@@ -6,7 +6,7 @@ import { Label } from '@/app/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { UserPlus, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { submitStudentRegistration } from '@/app/backend/store';
+import { submitStudentRegistrationWithFallback } from '@/app/backend/store';
 
 interface StudentRegistrationScreenProps {
   onBackToLogin: () => void;
@@ -29,17 +29,21 @@ export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistration
 
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = submitStudentRegistration(formData);
+    const result = await submitStudentRegistrationWithFallback(formData);
 
     if (!result.ok) {
-      toast.error(result.message);
+      toast.error('message' in result ? result.message : 'Не удалось отправить заявку');
       return;
     }
 
     setIsSubmitted(true);
-    toast.success('Заявка на регистрацию отправлена!');
+    if (result.source === 'local') {
+      toast.success('Заявка сохранена локально (backend временно недоступен)');
+    } else {
+      toast.success('Заявка на регистрацию отправлена!');
+    }
   };
 
   const handleChange = (field: string, value: string) => {

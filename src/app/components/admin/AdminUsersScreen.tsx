@@ -35,7 +35,7 @@ export function AdminUsersScreen() {
   });
 
   const handleOpenAdd = () => { setFormData(EMPTY_FORM); setIsAddDialogOpen(true); };
-  const handleOpenEdit = (user: UserRecord) => { setSelectedUser(user); setFormData({ ...EMPTY_FORM, ...user, class: user.class ?? '' }); setIsEditDialogOpen(true); };
+  const handleOpenEdit = (user: UserRecord) => { setSelectedUser(user); setFormData({ ...EMPTY_FORM, ...user, password: '', class: user.class ?? '' }); setIsEditDialogOpen(true); };
   const handleOpenDelete = (user: UserRecord) => { setSelectedUser(user); setIsDeleteDialogOpen(true); };
 
   const handleAddUser = () => {
@@ -47,7 +47,7 @@ export function AdminUsersScreen() {
 
   const handleSaveEdit = () => {
     if (!selectedUser) return;
-    updateUser(selectedUser.id, { name: formData.name, email: formData.email, login: formData.login, password: formData.password, role: formData.role, class: formData.role === 'student' ? formData.class : undefined, status: formData.status });
+    updateUser(selectedUser.id, { name: formData.name, email: formData.email, login: formData.login, ...(formData.password.trim() ? { password: formData.password } : {}), role: formData.role, class: formData.role === 'student' ? formData.class : undefined, status: formData.status });
     setIsEditDialogOpen(false); toast.success('Пользователь обновлен');
   };
 
@@ -64,7 +64,7 @@ export function AdminUsersScreen() {
       <div className="space-y-2"><Label>Email</Label><Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2"><Label>Логин</Label><Input value={formData.login} onChange={(e) => setFormData({ ...formData, login: e.target.value })} /></div>
-        <div className="space-y-2"><Label>Пароль</Label><Input value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} /></div>
+        <div className="space-y-2"><Label>Пароль</Label><Input value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={selectedUser ? 'Оставьте пустым, чтобы не менять' : ''} /></div>
       </div>
       <div className="space-y-2"><Label>Роль</Label><Select value={formData.role} onValueChange={(v: UserRecord['role']) => setFormData({ ...formData, role: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="admin">Администратор</SelectItem><SelectItem value="curator">Куратор</SelectItem><SelectItem value="student">Ученик</SelectItem></SelectContent></Select></div>
       {formData.role === 'student' && <div className="space-y-2"><Label>Класс</Label><Input value={formData.class} onChange={(e) => setFormData({ ...formData, class: e.target.value })} /></div>}

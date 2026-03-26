@@ -69,7 +69,7 @@ export function AnalyticsScreen() {
     return { studentsCount: students.length, achievementsCount: achievements.length, avgPoints, approvalRate, monthlyAchievementsData, categoryDistribution, classComparisonData, topStudentsData, approvalRateData };
   }, [users, achievements]);
 
-  const handleExportAnalytics = () => {
+  const handleExportAnalytics = (format: 'excel' | 'word' | 'pdf') => {
     const payload = {
       generatedAt: new Date().toISOString(),
       metrics: {
@@ -84,16 +84,53 @@ export function AnalyticsScreen() {
       topStudentsData: analytics.topStudentsData,
     };
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `analytics-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success('Аналитика экспортирована в JSON');
+    const baseName = `analytics-${new Date().toISOString().slice(0, 10)}`;
+    const csvRows = [
+      ['Метрика', 'Значение'],
+      ['Активных учеников', payload.metrics.studentsCount],
+      ['Всего достижений', payload.metrics.achievementsCount],
+      ['Средний балл', payload.metrics.avgPoints],
+      ['Процент одобрения', payload.metrics.approvalRate],
+    ];
+    const csv = csvRows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+
+    if (format === 'excel') {
+      const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${baseName}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Аналитика экспортирована в Excel-совместимый CSV');
+      return;
+    }
+
+    const html = `<html><head><meta charset="utf-8"><title>${baseName}</title></head><body><h2>Аналитика</h2><pre>${JSON.stringify(payload, null, 2)}</pre></body></html>`;
+    if (format === 'word') {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${baseName}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Аналитика экспортирована в Word (DOC)');
+      return;
+    }
+
+    const w = window.open('', '_blank');
+    if (!w) return toast.error('Не удалось открыть окно печати PDF');
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+    w.close();
+    toast.success('Открыто окно печати. Сохраните как PDF');
   };
 
   return (
@@ -103,10 +140,11 @@ export function AnalyticsScreen() {
           <h2 className="text-2xl text-gray-900 mb-2">Аналитика и статистика</h2>
           <p className="text-gray-600">Автоматически рассчитанные показатели системы</p>
         </div>
-        <Button onClick={handleExportAnalytics} variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Экспорт JSON
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => handleExportAnalytics('excel')} variant="outline" className="gap-2"><Download className="w-4 h-4" />Excel</Button>
+          <Button onClick={() => handleExportAnalytics('word')} variant="outline" className="gap-2"><Download className="w-4 h-4" />Word</Button>
+          <Button onClick={() => handleExportAnalytics('pdf')} variant="outline" className="gap-2"><Download className="w-4 h-4" />PDF</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

@@ -12,9 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Check, X, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useBackendState } from '@/app/backend/store';
 
 export function CuratorSectionsScreen() {
   const { sections, applications, updateApplicationStatus, addSection, deleteSection, getSectionMembersCount } = useSections();
+  const { users, sectionMembers } = useBackendState();
   const [activeTab, setActiveTab] = useState('applications');
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   
@@ -209,6 +211,12 @@ export function CuratorSectionsScreen() {
                     </p>
                     <p className="text-sm mt-2 text-gray-600">
                       Участников: <strong>{getSectionMembersCount(section.id)}</strong> / {section.capacity}
+                    </p>
+                    <p className="text-xs mt-1 text-gray-500">
+                      Состав: {sectionMembers
+                        .filter((m) => m.sectionId === section.id)
+                        .map((m) => users.find((u) => u.id === m.studentId)?.name ?? `ID ${m.studentId}`)
+                        .join(', ') || 'Пока нет участников'}
                     </p>
                   </div>
                   <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDeleteSection(section.id)}>

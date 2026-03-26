@@ -9,19 +9,30 @@ interface StudentMainScreenProps {
 }
 
 export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
-  const { achievements } = useBackendState();
+  const { achievements, users } = useBackendState();
   const currentUser = getCurrentUser();
   const myAchievements = achievements.filter((a) => a.studentUserId === currentUser?.id);
   const approved = myAchievements.filter((a) => a.status === 'approved');
   const pending = myAchievements.filter((a) => a.status === 'pending');
   const rejected = myAchievements.filter((a) => a.status === 'rejected');
   const totalPoints = approved.reduce((sum, a) => sum + a.expectedPoints, 0);
+  const myClass = currentUser?.class ?? '—';
+  const classStudents = users.filter((u) => u.role === 'student' && (u.class ?? '—') === myClass);
+  const classRating = classStudents
+    .map((s) => ({
+      id: s.id,
+      points: achievements
+        .filter((a) => a.studentUserId === s.id && a.status === 'approved')
+        .reduce((sum, a) => sum + a.expectedPoints, 0),
+    }))
+    .sort((a, b) => b.points - a.points);
+  const rank = classRating.findIndex((item) => item.id === currentUser?.id) + 1;
 
   const studentInfo = {
     name: currentUser?.name ?? 'Ученик',
-    class: currentUser?.class ?? '—',
+    class: myClass,
     totalPoints,
-    rank: 1,
+    rank: rank > 0 ? rank : 1,
   };
 
   const stats = [

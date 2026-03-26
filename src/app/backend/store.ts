@@ -164,9 +164,11 @@ interface BackendState {
   sectionApplications: SectionApplicationRecord[];
   sectionMembers: SectionMemberRecord[];
   userSettings: UserSettingsRecord[];
+  scoringRules: Record<string, Record<string, number>>;
 }
 
 const STORAGE_KEY = 'gifted-children-backend-v2';
+const API_BASE_URL = (typeof import.meta !== 'undefined' && (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) || 'http://localhost:8080';
 const PASSWORD_PREFIX = 'h$';
 
 const now = () => new Date().toLocaleString('ru-RU');
@@ -184,6 +186,11 @@ const ensurePasswordHash = (value: string) => (value?.startsWith(PASSWORD_PREFIX
 const ADMIN_SEED_PASSWORD = String.fromCharCode(97, 100, 109, 105, 110, 49, 50, 51);
 const CURATOR_SEED_PASSWORD = String.fromCharCode(99, 117, 114, 97, 116, 111, 114, 49, 50, 51);
 const STUDENT_SEED_PASSWORD = String.fromCharCode(115, 116, 117, 100, 101, 110, 116, 49, 50, 51);
+const DEFAULT_SCORING_RULES: Record<string, Record<string, number>> = {
+  'Учебные достижения': { 'Международный': 60, 'Всероссийский': 50, 'Региональный': 40, 'Муниципальный': 20, 'Школьный': 10 },
+  'Проектная деятельность': { 'Международный': 60, 'Всероссийский': 50, 'Региональный': 40, 'Муниципальный': 20, 'Школьный': 40 },
+  'Внеурочная деятельность': { 'Региональный': 30, 'Муниципальный': 25, 'Школьный': 20, '-': 25 },
+};
 
 const INITIAL_STATE: BackendState = {
   currentUserId: null,
@@ -252,6 +259,7 @@ const INITIAL_STATE: BackendState = {
     { userId: 2, position: 'Куратор', phone: '+7 (900) 111-22-33', rowsPerPage: '10', dateFormat: 'dd.mm.yyyy', showTooltips: true, saveFilters: true, notifications: true },
     { userId: 3, position: 'Ученик', phone: '+7 (900) 555-66-77', rowsPerPage: '10', dateFormat: 'dd.mm.yyyy', showTooltips: true, saveFilters: true, notifications: true },
   ],
+  scoringRules: DEFAULT_SCORING_RULES,
 };
 
 let state = loadState();
@@ -263,7 +271,10 @@ function loadState(): BackendState {
   if (!raw) return INITIAL_STATE;
   try {
     const parsed = JSON.parse(raw) as BackendState;
-    const users = (parsed.users ?? INITIAL_STATE.users).map((u) => ({ ...u, password: ensurePasswordHash(u.password) }));
+    const storedUsers = (parsed.users ?? INITIAL_STATE.users).map((u) => ({ ...u, password: ensurePasswordHash(u.password) }));
+    const rolesInStore = new Set(storedUsers.map((u) => u.role));
+    const missingSeedUsers = INITIAL_STATE.users.filter((u) => !rolesInStore.has(u.role));
+    const users = [...storedUsers, ...missingSeedUsers];
     const registrations = (parsed.registrations ?? INITIAL_STATE.registrations).map((r) => ({ ...r, password: ensurePasswordHash(r.password) }));
     return {
       ...INITIAL_STATE,
@@ -279,6 +290,7 @@ function loadState(): BackendState {
       sectionApplications: parsed.sectionApplications ?? INITIAL_STATE.sectionApplications,
       sectionMembers: parsed.sectionMembers ?? INITIAL_STATE.sectionMembers,
       userSettings: parsed.userSettings ?? INITIAL_STATE.userSettings,
+      scoringRules: parsed.scoringRules ?? INITIAL_STATE.scoringRules,
     };
   } catch {
     return INITIAL_STATE;
@@ -405,6 +417,33 @@ export function submitStudentRegistration(payload: Omit<RegistrationRequest, 'id
     return draft;
   });
   return { ok: true as const };
+}
+
+export async function submitStudentRegistrationWithFallback(payload: Omit<RegistrationRequest, 'id' | 'submittedAt' | 'status'>) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/registrations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lastName: payload.lastName,
+        firstName: payload.firstName,
+        middleName: payload.middleName,
+        email: payload.email,
+        class: payload.class,
+        login: payload.login,
+        password: payload.password,
+      }),
+    });
+
+    if (response.ok) {
+      return { ok: true as const, source: 'api' as const };
+    }
+  } catch {
+    // network fallback below
+  }
+
+  const localResult = submitStudentRegistration(payload);
+  return { ...localResult, source: 'local' as const };
 }
 
 export function processRegistration(requestId: number, action: 'approve' | 'reject', comment: string) {
@@ -612,6 +651,16 @@ export function addCalendarEvent(payload: Omit<CalendarEventRecord, 'id'>) {
     const draft = { ...prev, calendarEvents: [...prev.calendarEvents, event] };
     addAudit(actor, 'Создание', 'Календарь', `Добавлено событие "${event.title}"`, draft);
     addNotification({ userRole: 'student', type: 'info', title: 'Новое событие', message: event.title }, draft);
+    return draft;
+  });
+}
+
+export function deleteCalendarEvent(eventId: number) {
+  const actor = getCurrentUser() ?? state.users.find((u) => u.role === 'admin') ?? state.users[0];
+  mutate((prev) => {
+    const event = prev.calendarEvents.find((e) => e.id === eventId);
+    const draft = { ...prev, calendarEvents: prev.calendarEvents.filter((e) => e.id !== eventId) };
+    if (event) addAudit(actor, 'Удаление', 'Календарь', `Удалено событие "${event.title}"`, draft);
     return draft;
   });
 }
@@ -834,10 +883,27 @@ export function changeCurrentUserPassword(currentPassword: string, newPassword: 
 }
 
 export function __resetStoreForTests() {
+  resetStoreToInitial();
+}
+
+export function resetStoreToInitial() {
   state = JSON.parse(JSON.stringify(INITIAL_STATE));
   persistAndEmit();
 }
 
 export function __getStateForTests() {
   return state;
+}
+
+export function getScoringRules() {
+  return state.scoringRules;
+}
+
+export function setScoringRules(nextRules: Record<string, Record<string, number>>) {
+  mutate((prev) => {
+    const actor = getCurrentUser() ?? prev.users[0];
+    const draft = { ...prev, scoringRules: nextRules };
+    addAudit(actor, 'Редактирование', 'Настройки', 'Обновлены стандарты начисления баллов', draft);
+    return draft;
+  });
 }

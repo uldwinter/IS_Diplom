@@ -2,25 +2,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { useApp } from '@/app/lib/AppContext';
+import { useBackendState } from '@/app/backend/store';
 
 interface CuratorMainScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 export function CuratorMainScreen({ onNavigate }: CuratorMainScreenProps) {
-  const { achievements, sectionApplications, auditLog, currentUser } = useApp();
-
+  const { achievements, users } = useBackendState();
+  const studentsCount = users.filter((u) => u.role === 'student').length;
+  const pending = achievements.filter((a) => a.status === 'pending');
+  const approved = achievements.filter((a) => a.status === 'approved');
+  const rejected = achievements.filter((a) => a.status === 'rejected');
+  const today = new Date().toLocaleDateString('ru-RU');
+  const approvedToday = approved.filter((a) => a.submittedDate === today || a.date === today);
+  const rejectedToday = rejected.filter((a) => a.submittedDate === today || a.date === today);
   const stats = [
     { label: 'Всего заявок', value: String(achievements.length), icon: AlertCircle, color: 'bg-blue-50 text-blue-600' },
-    { label: 'На проверке', value: String(achievements.filter(a => a.status === 'pending').length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
-    { label: 'Одобрено', value: String(achievements.filter(a => a.status === 'approved').length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
-    { label: 'Отклонено', value: String(achievements.filter(a => a.status === 'rejected').length), icon: XCircle, color: 'bg-red-50 text-red-600' },
+    { label: 'На проверке', value: String(pending.length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
+    { label: 'Одобрено сегодня', value: String(approvedToday.length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
+    { label: 'Отклонено сегодня', value: String(rejectedToday.length), icon: XCircle, color: 'bg-red-50 text-red-600' },
   ];
 
-  const recentActions = auditLog
-    .filter(l => l.action.includes('достижени') || l.action.includes('заявк'))
-    .slice(0, 5);
+  const recentActions = achievements.slice().sort((a, b) => b.id - a.id).slice(0, 6).map((a) => ({
+    id: a.id,
+    student: `${a.studentName}, ${a.studentClass}`,
+    achievement: a.achievementName,
+    action: a.status === 'approved' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending',
+    time: a.submittedDate,
+  }));
 
   return (
     <div className="space-y-8">
@@ -55,7 +65,7 @@ export function CuratorMainScreen({ onNavigate }: CuratorMainScreenProps) {
           <div className="flex items-start gap-3">
             <Clock className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">18 заявок ожидают проверки</p>
+                  <p className="font-medium text-gray-900">{pending.length} заявок ожидают проверки</p>
               <p className="text-sm text-gray-600 mt-1">
                 Перейдите в раздел "Проверка заявок" для модерации достижений учащихся
               </p>
@@ -83,7 +93,7 @@ export function CuratorMainScreen({ onNavigate }: CuratorMainScreenProps) {
                     <p className="text-sm font-medium text-gray-900">{action.student}</p>
                     <p className="text-sm text-gray-600">{action.achievement}</p>
                     <p className={`text-xs mt-1 ${action.action === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
-                      {action.action === 'approved' ? 'Заявка одобрена' : 'Заявка отклонена'}
+                      {action.action === 'approved' ? 'Заявка одобрена' : action.action === 'rejected' ? 'Заявка отклонена' : 'Ожидает проверки'}
                     </p>
                   </div>
                 </div>
@@ -132,13 +142,13 @@ export function CuratorMainScreen({ onNavigate }: CuratorMainScreenProps) {
                 onClick={() => onNavigate('requests')}
                 className="w-full p-3 text-left border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
                 <p className="text-sm font-medium text-gray-900">Просмотреть новые заявки</p>
-                <p className="text-xs text-gray-500">18 заявок ожидают</p>
+                  <p className="text-xs text-gray-500">{pending.length} заявок ожидают</p>
               </button>
               <button
                 onClick={() => onNavigate('students')}
                 className="w-full p-3 text-left border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
                 <p className="text-sm font-medium text-gray-900">Список учащихся</p>
-                <p className="text-xs text-gray-500">Просмотр всех учащихся</p>
+                <p className="text-xs text-gray-500">Всего в реестре: {studentsCount}</p>
               </button>
               <button
                 onClick={() => onNavigate('analytics')}
