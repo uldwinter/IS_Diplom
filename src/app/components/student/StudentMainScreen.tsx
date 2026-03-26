@@ -10,8 +10,9 @@ interface StudentMainScreenProps {
 
 export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
   const { achievements, users } = useBackendState();
+  const safeAchievements = Array.isArray(achievements) ? achievements : [];
   const currentUser = getCurrentUser();
-  const myAchievements = achievements.filter((a) => a.studentUserId === currentUser?.id);
+  const myAchievements = safeAchievements.filter((a) => a.studentUserId === currentUser?.id);
   const approved = myAchievements.filter((a) => a.status === 'approved');
   const pending = myAchievements.filter((a) => a.status === 'pending');
   const rejected = myAchievements.filter((a) => a.status === 'rejected');
@@ -21,7 +22,7 @@ export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
   const classRating = classStudents
     .map((s) => ({
       id: s.id,
-      points: achievements
+      points: safeAchievements
         .filter((a) => a.studentUserId === s.id && a.status === 'approved')
         .reduce((sum, a) => sum + a.expectedPoints, 0),
     }))

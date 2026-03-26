@@ -10,21 +10,22 @@ interface CuratorMainScreenProps {
 
 export function CuratorMainScreen({ onNavigate }: CuratorMainScreenProps) {
   const { achievements, users } = useBackendState();
+  const safeAchievements = Array.isArray(achievements) ? achievements : [];
   const studentsCount = users.filter((u) => u.role === 'student').length;
-  const pending = achievements.filter((a) => a.status === 'pending');
-  const approved = achievements.filter((a) => a.status === 'approved');
-  const rejected = achievements.filter((a) => a.status === 'rejected');
+  const pending = safeAchievements.filter((a) => a.status === 'pending');
+  const approved = safeAchievements.filter((a) => a.status === 'approved');
+  const rejected = safeAchievements.filter((a) => a.status === 'rejected');
   const today = new Date().toLocaleDateString('ru-RU');
   const approvedToday = approved.filter((a) => a.submittedDate === today || a.date === today);
   const rejectedToday = rejected.filter((a) => a.submittedDate === today || a.date === today);
   const stats = [
-    { label: 'Всего заявок', value: String(achievements.length), icon: AlertCircle, color: 'bg-blue-50 text-blue-600' },
+    { label: 'Всего заявок', value: String(safeAchievements.length), icon: AlertCircle, color: 'bg-blue-50 text-blue-600' },
     { label: 'На проверке', value: String(pending.length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
     { label: 'Одобрено сегодня', value: String(approvedToday.length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
     { label: 'Отклонено сегодня', value: String(rejectedToday.length), icon: XCircle, color: 'bg-red-50 text-red-600' },
   ];
 
-  const recentActions = achievements.slice().sort((a, b) => b.id - a.id).slice(0, 6).map((a) => ({
+  const recentActions = safeAchievements.slice().sort((a, b) => b.id - a.id).slice(0, 6).map((a) => ({
     id: a.id,
     student: `${a.studentName}, ${a.studentClass}`,
     achievement: a.achievementName,

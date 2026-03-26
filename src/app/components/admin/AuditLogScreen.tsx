@@ -24,19 +24,21 @@ interface AuditLogEntry {
 
 export function AuditLogScreen() {
   const { auditLogs } = useBackendState();
-  const logs = useMemo(() => auditLogs, [auditLogs]);
+  const logs = useMemo(() => (Array.isArray(auditLogs) ? auditLogs : []), [auditLogs]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterAction, setFilterAction] = useState<string>('all');
 
-  const filteredLogs = auditLog.filter((log) => {
+  const filteredLogs = logs.filter((log) => {
+    const userText = String(log.user ?? '').toLowerCase();
+    const detailsText = String(log.details ?? '').toLowerCase();
+    const actionText = String(log.action ?? '');
     const matchesSearch =
       searchQuery === '' ||
-      log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchQuery.toLowerCase());
+      userText.includes(searchQuery.toLowerCase()) ||
+      detailsText.includes(searchQuery.toLowerCase());
     const matchesRole = filterRole === 'all' || log.userRole === filterRole;
-    const matchesAction = filterAction === 'all' || log.action.includes(filterAction);
+    const matchesAction = filterAction === 'all' || actionText.includes(filterAction);
     return matchesSearch && matchesRole && matchesAction;
   });
 
