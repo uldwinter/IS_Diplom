@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSections, Section, SectionApplication } from './SectionsContext';
+import { useSections, Section } from './SectionsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
@@ -7,14 +7,14 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Check, X, Plus, Trash2, Search } from 'lucide-react';
+import { Check, X, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function CuratorSectionsScreen() {
-  const { sections, applications, members, updateApplicationStatus, addSection, deleteSection, getSectionMembersCount } = useSections();
+  const { sections, applications, updateApplicationStatus, addSection, deleteSection, getSectionMembersCount } = useSections();
   const [activeTab, setActiveTab] = useState('applications');
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   
@@ -33,11 +33,26 @@ export function CuratorSectionsScreen() {
   const processedApplications = applications.filter(app => app.status !== 'pending');
 
   const handleCreateSection = () => {
-    if (!newSection.name || !newSection.teacher) {
+    if (!newSection.name || !newSection.teacher || !newSection.schedule || !newSection.location || !newSection.description) {
       toast.error('Заполните обязательные поля');
       return;
     }
-    addSection(newSection as any);
+
+    const capacity = Number(newSection.capacity ?? 0);
+    if (!Number.isFinite(capacity) || capacity <= 0) {
+      toast.error('Укажите корректную вместимость секции');
+      return;
+    }
+
+    addSection({
+      name: newSection.name,
+      category: newSection.category ?? 'sport',
+      teacher: newSection.teacher,
+      schedule: newSection.schedule,
+      location: newSection.location,
+      description: newSection.description,
+      capacity,
+    });
     setIsAddSectionOpen(false);
     toast.success('Секция успешно создана');
     setNewSection({ name: '', category: 'sport', teacher: '', schedule: '', location: '', description: '', capacity: 20 });
@@ -118,13 +133,21 @@ export function CuratorSectionsScreen() {
                           <TableCell>{app.date}</TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => {
-                              updateApplicationStatus(app.id, 'approved');
+                              const result = updateApplicationStatus(app.id, 'approved');
+                              if (!result.ok) {
+                                toast.error(result.message ?? 'Не удалось обработать заявку');
+                                return;
+                              }
                               toast.success(`Заявка ${app.studentName} принята`);
                             }}>
                               <Check className="w-4 h-4 mr-1" /> Принять
                             </Button>
                             <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => {
-                              updateApplicationStatus(app.id, 'rejected');
+                              const result = updateApplicationStatus(app.id, 'rejected');
+                              if (!result.ok) {
+                                toast.error(result.message ?? 'Не удалось обработать заявку');
+                                return;
+                              }
                               toast.error(`Заявка ${app.studentName} отклонена`);
                             }}>
                               <X className="w-4 h-4 mr-1" /> Отклонить
@@ -265,7 +288,7 @@ export function CuratorSectionsScreen() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="category" className="text-right">Категория</Label>
-              <Select value={newSection.category} onValueChange={(v: any) => setNewSection({...newSection, category: v})}>
+              <Select value={newSection.category} onValueChange={(v: Section['category']) => setNewSection({...newSection, category: v})}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Выберите категорию" />
                 </SelectTrigger>
@@ -280,6 +303,18 @@ export function CuratorSectionsScreen() {
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="schedule" className="text-right">Расписание</Label>
               <Input id="schedule" className="col-span-3" placeholder="Пн, Ср 15:00" value={newSection.schedule} onChange={e => setNewSection({...newSection, schedule: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="location" className="text-right">Кабинет</Label>
+              <Input id="location" className="col-span-3" placeholder="Каб. 204" value={newSection.location} onChange={e => setNewSection({...newSection, location: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="capacity" className="text-right">Мест</Label>
+              <Input id="capacity" type="number" min={1} className="col-span-3" value={newSection.capacity} onChange={e => setNewSection({...newSection, capacity: Number(e.target.value)})} />
+            </div>
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="description" className="text-right pt-2">Описание</Label>
+              <Input id="description" className="col-span-3" value={newSection.description} onChange={e => setNewSection({...newSection, description: e.target.value})} />
             </div>
           </div>
           <DialogFooter>
