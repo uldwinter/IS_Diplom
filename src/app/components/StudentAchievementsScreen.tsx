@@ -21,7 +21,7 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
 
   const academic = allAchievements.filter(a => a.category === 'Учебные достижения');
   const extracurricular = allAchievements.filter(a => a.category === 'Внеурочная деятельность');
-  const projects = allAchievements.filter(a => a.category === 'Проектная деятельность');
+  const projectAchievements = allAchievements.filter(a => a.category === 'Проектная деятельность');
   const other = allAchievements.filter(a => !['Учебные достижения', 'Внеурочная деятельность', 'Проектная деятельность'].includes(a.category));
 
   const approvedPoints = allAchievements.filter(a => a.status === 'approved').reduce((sum, a) => sum + a.points, 0);
