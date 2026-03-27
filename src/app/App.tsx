@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 import { LoginScreen } from '@/app/components/LoginScreen';
-import { RoleSelectionScreen } from '@/app/components/RoleSelectionScreen';
+import { StudentRegistrationScreen } from '@/app/components/registration/StudentRegistrationScreen';
 
 // Admin components
 import { AdminLayout } from '@/app/components/layouts/AdminLayout';
@@ -38,8 +38,9 @@ import { SectionsProvider } from '@/app/components/sections/SectionsContext';
 import { StudentSectionsScreen } from '@/app/components/sections/StudentSectionsScreen';
 import { CuratorSectionsScreen } from '@/app/components/sections/CuratorSectionsScreen';
 import { AchievementsListScreen } from '@/app/components/AchievementsListScreen';
+import { UserRecord, getCurrentUser, logout as backendLogout } from '@/app/backend/store';
 
-type AppState = 'login' | 'role-selection' | 'app';
+type AppState = 'login' | 'student-registration' | 'app';
 type UserRole = 'admin' | 'curator' | 'student' | null;
 type Screen = string;
 
@@ -48,13 +49,19 @@ function AppContent() {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [currentScreen, setCurrentScreen] = useState<Screen>('main');
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const resolvedCurrentUser = getCurrentUser();
 
-  const handleLogin = () => {
-    setAppState('role-selection');
-  };
+  useEffect(() => {
+    const restored = getCurrentUser();
+    if (restored) {
+      setUserRole(restored.role);
+      setAppState('app');
+      setCurrentScreen('main');
+    }
+  }, []);
 
-  const handleSelectRole = (role: 'admin' | 'curator' | 'student') => {
-    setUserRole(role);
+  const handleLogin = (user: UserRecord) => {
+    setUserRole(user.role);
     setCurrentScreen('main');
     setAppState('app');
   };
@@ -77,24 +84,24 @@ function AppContent() {
   const handleLogout = () => {
     setAppState('login');
     setUserRole(null);
+    backendLogout();
     setCurrentScreen('main');
     setSelectedStudentId(null);
   };
 
   // Login screen
   if (appState === 'login') {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} onOpenRegistration={() => setAppState('student-registration')} />;
   }
 
-  // Role selection screen
-  if (appState === 'role-selection') {
-    return <RoleSelectionScreen onSelectRole={handleSelectRole} />;
+  if (appState === 'student-registration') {
+    return <StudentRegistrationScreen onBackToLogin={() => setAppState('login')} />;
   }
 
   // Admin interface
   if (userRole === 'admin') {
     return (
-      <AdminLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout}>
+      <AdminLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <AdminMainScreen onNavigate={handleNavigate} />}
         {currentScreen === 'users' && <AdminUsersScreen />}
         {currentScreen === 'students' && <StudentsScreen onViewStudent={handleViewStudent} />}
@@ -119,7 +126,7 @@ function AppContent() {
   // Curator interface
   if (userRole === 'curator') {
     return (
-      <CuratorLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout}>
+      <CuratorLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <CuratorMainScreen onNavigate={handleNavigate} />}
         {currentScreen === 'sections' && <CuratorSectionsScreen />}
         {currentScreen === 'requests' && <CuratorRequestsScreen />}
@@ -144,10 +151,10 @@ function AppContent() {
   // Student interface
   if (userRole === 'student') {
     return (
-      <StudentLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout}>
+      <StudentLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <StudentMainScreen onNavigate={handleNavigate} />}
         {currentScreen === 'sections' && <StudentSectionsScreen />}
-        {currentScreen === 'my-achievements' && <StudentAchievementsManagement />}
+        {currentScreen === 'my-achievements' && resolvedCurrentUser && <StudentAchievementsManagement studentUserId={resolvedCurrentUser.id} />}
         {currentScreen === 'rating' && <EnhancedRatingScreen />}
         {currentScreen === 'portfolio' && <StudentPortfolioScreen />}
         {currentScreen === 'calendar' && <EventsCalendarScreen />}
