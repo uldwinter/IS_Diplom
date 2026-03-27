@@ -30,6 +30,7 @@ export function AuditLogScreen() {
   const [filterAction, setFilterAction] = useState<string>('all');
 
   const filteredLogs = logs.filter((log) => {
+    if (!log || typeof log !== 'object') return false;
     const userText = String(log.user ?? '').toLowerCase();
     const detailsText = String(log.details ?? '').toLowerCase();
     const actionText = String(log.action ?? '');

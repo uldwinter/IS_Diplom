@@ -10,7 +10,7 @@ interface CuratorMainScreenProps {
 
 export function CuratorMainScreen({ onNavigate }: CuratorMainScreenProps) {
   const { achievements, users } = useBackendState();
-  const safeAchievements = Array.isArray(achievements) ? achievements : [];
+  const safeAchievements = Array.isArray(achievements) ? achievements.filter((item) => item && typeof item === 'object') : [];
   const studentsCount = users.filter((u) => u.role === 'student').length;
   const pending = safeAchievements.filter((a) => a.status === 'pending');
   const approved = safeAchievements.filter((a) => a.status === 'approved');

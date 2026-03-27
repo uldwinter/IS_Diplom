@@ -273,7 +273,10 @@ function loadState(): BackendState {
   if (!raw) return INITIAL_STATE;
   try {
     const parsed = JSON.parse(raw) as BackendState;
-    const safeArray = <T,>(value: unknown, fallback: T[]) => (Array.isArray(value) ? value : fallback);
+    const safeArray = <T,>(value: unknown, fallback: T[]) =>
+      (Array.isArray(value)
+        ? (value.filter((item) => item !== null && typeof item === 'object') as T[])
+        : fallback);
     const storedUsers = safeArray(parsed.users, INITIAL_STATE.users).map((u) => ({ ...u, password: ensurePasswordHash(u.password) }));
     const rolesInStore = new Set(storedUsers.map((u) => u.role));
     const missingSeedUsers = INITIAL_STATE.users.filter((u) => !rolesInStore.has(u.role));

@@ -10,7 +10,7 @@ interface StudentMainScreenProps {
 
 export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
   const { achievements, users } = useBackendState();
-  const safeAchievements = Array.isArray(achievements) ? achievements : [];
+  const safeAchievements = Array.isArray(achievements) ? achievements.filter((item) => item && typeof item === 'object') : [];
   const currentUser = getCurrentUser();
   const myAchievements = safeAchievements.filter((a) => a.studentUserId === currentUser?.id);
   const approved = myAchievements.filter((a) => a.status === 'approved');
