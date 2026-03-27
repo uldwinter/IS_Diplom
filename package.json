@@ -9,7 +9,7 @@
     "check:app": "node scripts/check-app-integrity.mjs",
     "check:contracts": "node scripts/check-contracts.mjs",
     "check:store": "node scripts/check-store-hardening.mjs",
-    "check:types": "tsc --noEmit"
+    "check:types": "tsc --noEmit --ignoreDeprecations 6.0 || tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

@@ -175,6 +175,14 @@ const PASSWORD_PREFIX = 'h$';
 const now = () => new Date().toLocaleString('ru-RU');
 const nextId = (arr: Array<{ id: number }>) => arr.reduce((m, i) => Math.max(m, i.id), 0) + 1;
 const roleRu = (r: UserRole) => (r === 'admin' ? 'Администратор' : r === 'curator' ? 'Куратор' : 'Ученик');
+const normalizeRole = (value: unknown): UserRole =>
+  value === 'admin' || value === 'curator' || value === 'student'
+    ? value
+    : value === 'Администратор'
+      ? 'admin'
+      : value === 'Куратор'
+        ? 'curator'
+        : 'student';
 const hashPassword = (plain: string) => {
   let hash = 2166136261;
   for (let i = 0; i < plain.length; i += 1) {
@@ -277,7 +285,16 @@ function loadState(): BackendState {
       (Array.isArray(value)
         ? (value.filter((item) => item !== null && typeof item === 'object') as T[])
         : fallback);
-    const storedUsers = safeArray(parsed.users, INITIAL_STATE.users).map((u) => ({ ...u, password: ensurePasswordHash(u.password) }));
+    const storedUsers = safeArray(parsed.users, INITIAL_STATE.users).map((u) => ({
+      ...u,
+      name: String(u.name ?? ''),
+      email: String(u.email ?? ''),
+      login: String(u.login ?? ''),
+      role: normalizeRole(u.role),
+      status: u.status === 'inactive' ? 'inactive' as const : 'active' as const,
+      class: u.class ? String(u.class) : undefined,
+      password: ensurePasswordHash(String(u.password ?? '')),
+    }));
     const rolesInStore = new Set(storedUsers.map((u) => u.role));
     const missingSeedUsers = INITIAL_STATE.users.filter((u) => !rolesInStore.has(u.role));
     const users = [...storedUsers, ...missingSeedUsers];

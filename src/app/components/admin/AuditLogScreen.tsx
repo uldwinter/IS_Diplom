@@ -70,10 +70,14 @@ export function AuditLogScreen() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'admin': return <Badge className="bg-red-600">Администратор</Badge>;
-      case 'curator': return <Badge className="bg-blue-600">Куратор</Badge>;
-      case 'student': return <Badge className="bg-green-600">Ученик</Badge>;
-      default: return <Badge variant="outline">{role}</Badge>;
+      case 'admin':
+        return <Badge className="bg-red-600">Администратор</Badge>;
+      case 'curator':
+        return <Badge className="bg-blue-600">Куратор</Badge>;
+      case 'student':
+        return <Badge className="bg-green-600">Ученик</Badge>;
+      default:
+        return <Badge variant="outline">{String(role)}</Badge>;
     }
   };
 
@@ -209,20 +213,20 @@ export function AuditLogScreen() {
                 ) : (
                   filteredLogs.map((log) => (
                     <TableRow key={log.id} className="hover:bg-gray-50">
-                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">{log.timestamp}</TableCell>
+                      <TableCell className="text-sm text-gray-600">{String(log.timestamp ?? '')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getRoleIcon(log.userRole)}
-                          <span className="text-sm font-medium text-gray-900">{log.user}</span>
+                          <span className="text-sm font-medium text-gray-900">{String(log.user ?? '')}</span>
                         </div>
                       </TableCell>
                       <TableCell>{getRoleBadge(log.userRole)}</TableCell>
-                      <TableCell className="text-sm text-gray-900">{log.action}</TableCell>
+                      <TableCell className="text-sm text-gray-900">{String(log.action ?? '')}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{log.entity}</Badge>
+                        <Badge variant="outline">{String(log.entity ?? '')}</Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600 max-w-xs truncate">
-                        {log.details}
+                      <TableCell className="text-sm text-gray-600 max-w-md truncate">
+                        {String(log.details ?? '')}
                       </TableCell>
                     </TableRow>
                   ))
