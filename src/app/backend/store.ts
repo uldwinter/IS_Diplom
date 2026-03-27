@@ -273,27 +273,28 @@ function loadState(): BackendState {
   if (!raw) return INITIAL_STATE;
   try {
     const parsed = JSON.parse(raw) as BackendState;
-    const storedUsers = (parsed.users ?? INITIAL_STATE.users).map((u) => ({ ...u, password: ensurePasswordHash(u.password) }));
+    const safeArray = <T,>(value: unknown, fallback: T[]) => (Array.isArray(value) ? value : fallback);
+    const storedUsers = safeArray(parsed.users, INITIAL_STATE.users).map((u) => ({ ...u, password: ensurePasswordHash(u.password) }));
     const rolesInStore = new Set(storedUsers.map((u) => u.role));
     const missingSeedUsers = INITIAL_STATE.users.filter((u) => !rolesInStore.has(u.role));
     const users = [...storedUsers, ...missingSeedUsers];
-    const registrations = (parsed.registrations ?? INITIAL_STATE.registrations).map((r) => ({ ...r, password: ensurePasswordHash(r.password) }));
+    const registrations = safeArray(parsed.registrations, INITIAL_STATE.registrations).map((r) => ({ ...r, password: ensurePasswordHash(r.password) }));
     return {
       ...INITIAL_STATE,
       ...parsed,
       users,
       registrations,
-      achievements: parsed.achievements ?? INITIAL_STATE.achievements,
-      notifications: parsed.notifications ?? [],
-      auditLogs: parsed.auditLogs ?? [],
-      calendarEvents: parsed.calendarEvents ?? INITIAL_STATE.calendarEvents,
-      news: parsed.news ?? INITIAL_STATE.news,
-      sections: parsed.sections ?? INITIAL_STATE.sections,
-      sectionApplications: parsed.sectionApplications ?? INITIAL_STATE.sectionApplications,
-      sectionMembers: parsed.sectionMembers ?? INITIAL_STATE.sectionMembers,
-      userSettings: parsed.userSettings ?? INITIAL_STATE.userSettings,
+      achievements: safeArray(parsed.achievements, INITIAL_STATE.achievements),
+      notifications: safeArray(parsed.notifications, []),
+      auditLogs: safeArray(parsed.auditLogs, []),
+      calendarEvents: safeArray(parsed.calendarEvents, INITIAL_STATE.calendarEvents),
+      news: safeArray(parsed.news, INITIAL_STATE.news),
+      sections: safeArray(parsed.sections, INITIAL_STATE.sections),
+      sectionApplications: safeArray(parsed.sectionApplications, INITIAL_STATE.sectionApplications),
+      sectionMembers: safeArray(parsed.sectionMembers, INITIAL_STATE.sectionMembers),
+      userSettings: safeArray(parsed.userSettings, INITIAL_STATE.userSettings),
       scoringRules: parsed.scoringRules ?? INITIAL_STATE.scoringRules,
-      classCatalog: parsed.classCatalog ?? INITIAL_STATE.classCatalog,
+      classCatalog: safeArray(parsed.classCatalog, INITIAL_STATE.classCatalog),
     };
   } catch {
     return INITIAL_STATE;
