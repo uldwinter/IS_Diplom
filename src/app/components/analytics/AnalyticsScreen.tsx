@@ -163,3 +163,9 @@ export function AnalyticsScreen() {
     </div>
   );
 }
+
+function shortName(fullName: string): string {
+  const parts = fullName.trim().split(' ');
+  if (parts.length === 1) return fullName;
+  return `${parts[0]} ${parts[1]?.[0] ?? ''}.${parts[2]?.[0] ? parts[2][0] + '.' : ''}`.trim();
+}
