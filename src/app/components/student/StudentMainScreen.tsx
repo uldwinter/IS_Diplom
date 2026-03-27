@@ -2,31 +2,52 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Award, Clock, CheckCircle, XCircle, TrendingUp, Plus, Users, Newspaper } from 'lucide-react';
+import { getCurrentUser, useBackendState } from '@/app/backend/store';
 
 interface StudentMainScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
+  const { achievements, users } = useBackendState();
+  const safeAchievements = Array.isArray(achievements) ? achievements.filter((item) => item && typeof item === 'object') : [];
+  const currentUser = getCurrentUser();
+  const myAchievements = safeAchievements.filter((a) => a.studentUserId === currentUser?.id);
+  const approved = myAchievements.filter((a) => a.status === 'approved');
+  const pending = myAchievements.filter((a) => a.status === 'pending');
+  const rejected = myAchievements.filter((a) => a.status === 'rejected');
+  const totalPoints = approved.reduce((sum, a) => sum + a.expectedPoints, 0);
+  const myClass = currentUser?.class ?? '—';
+  const classStudents = users.filter((u) => u.role === 'student' && (u.class ?? '—') === myClass);
+  const classRating = classStudents
+    .map((s) => ({
+      id: s.id,
+      points: safeAchievements
+        .filter((a) => a.studentUserId === s.id && a.status === 'approved')
+        .reduce((sum, a) => sum + a.expectedPoints, 0),
+    }))
+    .sort((a, b) => b.points - a.points);
+  const rank = classRating.findIndex((item) => item.id === currentUser?.id) + 1;
+
   const studentInfo = {
-    name: 'Иванов Иван Иванович',
-    class: '10-1',
-    totalPoints: 267,
-    rank: 1,
+    name: currentUser?.name ?? 'Ученик',
+    class: myClass,
+    totalPoints,
+    rank: rank > 0 ? rank : 1,
   };
 
   const stats = [
-    { label: 'Всего достижений', value: '12', icon: Award, color: 'bg-blue-50 text-blue-600' },
-    { label: 'На проверке', value: '3', icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
-    { label: 'Одобрено', value: '8', icon: CheckCircle, color: 'bg-green-50 text-green-600' },
-    { label: 'Отклонено', value: '1', icon: XCircle, color: 'bg-red-50 text-red-600' },
+    { label: 'Всего достижений', value: String(myAchievements.length), icon: Award, color: 'bg-blue-50 text-blue-600' },
+    { label: 'На проверке', value: String(pending.length), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
+    { label: 'Одобрено', value: String(approved.length), icon: CheckCircle, color: 'bg-green-50 text-green-600' },
+    { label: 'Отклонено', value: String(rejected.length), icon: XCircle, color: 'bg-red-50 text-red-600' },
   ];
 
-  const recentAchievements = [
-    { id: 1, name: 'Всероссийская олимпиада по математике', status: 'approved', points: 40, date: '15.01.2026' },
-    { id: 2, name: 'Участие в волонтёрской акции', status: 'pending', points: 25, date: '18.01.2026' },
-    { id: 3, name: 'Защита проекта по информатике', status: 'pending', points: 40, date: '19.01.2026' },
-  ];
+  const recentAchievements = myAchievements
+    .slice()
+    .sort((a, b) => b.id - a.id)
+    .slice(0, 5)
+    .map((a) => ({ id: a.id, name: a.achievementName, status: a.status, points: a.expectedPoints, date: a.date }));
 
   const getStatusBadge = (status: string) => {
     if (status === 'approved') return <Badge className="bg-green-600">Одобрено</Badge>;
