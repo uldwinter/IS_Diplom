@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 import { AppProvider } from '@/app/lib/AppContext';
+import { SectionsProvider } from '@/app/components/sections/SectionsContext';
 
 import { LoginScreen } from '@/app/components/LoginScreen';
 import { StudentRegistrationScreen } from '@/app/components/registration/StudentRegistrationScreen';
@@ -161,8 +162,10 @@ function AppContent() {
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
-      <Toaster position="top-right" richColors />
+      <SectionsProvider>
+        <AppContent />
+        <Toaster position="top-right" richColors />
+      </SectionsProvider>
     </AppProvider>
   );
 }
