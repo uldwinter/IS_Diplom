@@ -135,7 +135,7 @@ export function AuditLogScreen() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-600">Всего записей</p>
-            <p className="text-2xl font-semibold text-gray-900">{auditLog.length}</p>
+            <p className="text-2xl font-semibold text-gray-900">{logs.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -144,7 +144,7 @@ export function AuditLogScreen() {
               <div>
                 <p className="text-sm text-gray-600">Действий админов</p>
                 <p className="text-2xl font-semibold text-red-700">
-                  {auditLog.filter((l) => l.userRole === 'admin').length}
+                  {logs.filter((l) => l.userRole === 'admin').length}
                 </p>
               </div>
               <Shield className="w-8 h-8 text-red-500" />
@@ -157,7 +157,7 @@ export function AuditLogScreen() {
               <div>
                 <p className="text-sm text-gray-600">Действий кураторов</p>
                 <p className="text-2xl font-semibold text-blue-700">
-                  {auditLog.filter((l) => l.userRole === 'curator').length}
+                  {logs.filter((l) => l.userRole === 'curator').length}
                 </p>
               </div>
               <User className="w-8 h-8 text-blue-500" />
@@ -170,7 +170,7 @@ export function AuditLogScreen() {
               <div>
                 <p className="text-sm text-gray-600">Действий учеников</p>
                 <p className="text-2xl font-semibold text-green-700">
-                  {auditLog.filter((l) => l.userRole === 'student').length}
+                  {logs.filter((l) => l.userRole === 'student').length}
                 </p>
               </div>
               <GraduationCap className="w-8 h-8 text-green-500" />

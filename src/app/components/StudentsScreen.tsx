@@ -28,13 +28,6 @@ export function StudentsScreen({ onViewStudent }: StudentsScreenProps) {
     return matchesSearch && matchesClass;
   });
 
-  // Compute approved points per student for summary
-  const getStudentPoints = (studentId: number) => {
-    return achievements
-      .filter(a => a.studentId === studentId && a.status === 'approved')
-      .reduce((sum, a) => sum + a.points, 0);
-  };
-
   const uniqueClasses = Array.from(new Set(students.map((s) => s.class))).sort();
   const approvedByStudent = new Map<number, number>();
   const pendingByStudent = new Map<number, number>();

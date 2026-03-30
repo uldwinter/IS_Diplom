@@ -20,8 +20,8 @@ export function PendingRegistrationsScreen() {
   const pendingList = registrations.filter((r) => r.status === 'pending');
   const pendingCount = pendingList.length;
 
-  const handleViewDetails = (reg: PendingRegistration) => {
-    setSelected(reg);
+  const handleViewDetails = (reg: RegistrationRequest) => {
+    setSelectedRegistration(reg);
     setIsDialogOpen(true);
     setActionType(null);
     setComment('');
@@ -34,11 +34,11 @@ export function PendingRegistrationsScreen() {
 
     toast.success(
       actionType === 'approve'
-        ? `Регистрация одобрена! Ученик ${selected.lastName} ${selected.firstName} добавлен в систему.`
+        ? `Регистрация одобрена! Ученик ${selectedRegistration.lastName} ${selectedRegistration.firstName} добавлен в систему.`
         : 'Регистрация отклонена.'
     );
     setIsDialogOpen(false);
-    setSelected(null);
+    setSelectedRegistration(null);
     setActionType(null);
     setComment('');
   };
@@ -63,10 +63,10 @@ export function PendingRegistrationsScreen() {
             <Table>
               <TableHeader><TableRow className="bg-gray-50"><TableHead>Дата заявки</TableHead><TableHead>ФИО</TableHead><TableHead>Класс</TableHead><TableHead>Email</TableHead><TableHead>Телефон</TableHead><TableHead>Статус</TableHead><TableHead className="text-right">Действия</TableHead></TableRow></TableHeader>
               <TableBody>
-                {pendingRegistrations.length === 0 ? (
+                {pendingList.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center text-gray-500 py-8">Нет заявок, ожидающих проверки</TableCell></TableRow>
                 ) : (
-                  pendingRegistrations.map((registration) => (
+                  pendingList.map((registration) => (
                     <TableRow key={registration.id} className="hover:bg-gray-50">
                       <TableCell className="text-sm text-gray-600">{registration.submittedAt}</TableCell>
                       <TableCell className="font-medium">{registration.lastName} {registration.firstName} {registration.middleName}</TableCell>

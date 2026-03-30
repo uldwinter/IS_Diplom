@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
-import { AppProvider, useApp } from '@/app/lib/AppContext';
-import type { SystemUser } from '@/app/lib/types';
+import { AppProvider } from '@/app/lib/AppContext';
 
 import { LoginScreen } from '@/app/components/LoginScreen';
 import { StudentRegistrationScreen } from '@/app/components/registration/StudentRegistrationScreen';
@@ -17,11 +16,13 @@ import { CuratorLayout } from '@/app/components/layouts/CuratorLayout';
 import { CuratorMainScreen } from '@/app/components/curator/CuratorMainScreen';
 import { CuratorRequestsScreen } from '@/app/components/curator/CuratorRequestsScreen';
 import { PendingRegistrationsScreen } from '@/app/components/curator/PendingRegistrationsScreen';
+import { CuratorSectionsScreen } from '@/app/components/sections/CuratorSectionsScreen';
 
 // Student
 import { StudentLayout } from '@/app/components/layouts/StudentLayout';
 import { StudentMainScreen } from '@/app/components/student/StudentMainScreen';
 import { StudentAchievementsManagement } from '@/app/components/student/StudentAchievementsManagement';
+import { StudentSectionsScreen } from '@/app/components/sections/StudentSectionsScreen';
 
 // Shared screens
 import { StudentsScreen } from '@/app/components/StudentsScreen';
@@ -118,7 +119,7 @@ function AppContent() {
   }
 
   // ── Curator ─────────────────────────────────────────────────
-  if (currentUser.role === 'curator') {
+  if (userRole === 'curator') {
     return (
       <CuratorLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <CuratorMainScreen onNavigate={handleNavigate} />}
@@ -140,7 +141,7 @@ function AppContent() {
   }
 
   // ── Student ─────────────────────────────────────────────────
-  if (currentUser.role === 'student') {
+  if (userRole === 'student') {
     return (
       <StudentLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
         {currentScreen === 'main' && <StudentMainScreen onNavigate={handleNavigate} />}
@@ -155,10 +156,6 @@ function AppContent() {
   }
 
   return null;
-}
-
-function roleLabel(role: string) {
-  return role === 'admin' ? 'Администратор' : role === 'curator' ? 'Куратор' : 'Ученик';
 }
 
 export default function App() {
