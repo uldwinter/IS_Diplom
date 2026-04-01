@@ -7,7 +7,6 @@ import { Plus, Clock, CheckCircle, XCircle, FileText, Trash2 } from 'lucide-reac
 import { toast } from 'sonner';
 import { AddAchievementDialog } from './AddAchievementDialog';
 import { submitAchievement, useBackendState } from '@/app/backend/store';
-import { toast } from 'sonner';
 
 interface StudentAchievementsManagementProps {
   studentUserId: number;
