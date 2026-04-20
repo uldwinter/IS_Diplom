@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Home, Award, TrendingUp, User, Calendar, Newspaper, Users } from 'lucide-react';
 import { NotificationCenter } from '@/app/components/notifications/NotificationCenter';
+import { AppHeaderBrand } from '@/app/components/layouts/AppHeaderBrand';
 
 interface StudentLayoutProps {
   children: ReactNode;
@@ -14,7 +15,7 @@ export function StudentLayout({ children, currentScreen, onNavigate, onLogout, u
   const menuItems = [
     { id: 'main', label: 'Главная', icon: Home },
     { id: 'my-achievements', label: 'Мои достижения', icon: Award },
-    { id: 'sections', label: 'Секции и кружки', icon: Users }, // Re-using User icon or finding better one
+    { id: 'sections', label: 'Секции и кружки', icon: Users },
     { id: 'rating', label: 'Рейтинг', icon: TrendingUp },
     { id: 'portfolio', label: 'Моё портфолио', icon: User },
     { id: 'calendar', label: 'Календарь событий', icon: Calendar },
@@ -66,10 +67,8 @@ export function StudentLayout({ children, currentScreen, onNavigate, onLogout, u
       <div className="flex-1 flex flex-col">
         {/* Верхняя панель */}
         <header className="bg-white border-b border-gray-200 px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl text-gray-900 font-semibold truncate max-w-3xl">
-              Банк достижений учащихся МАОУ ОЦ2 города Челябинск
-            </h1>
+          <div className="flex items-center justify-between gap-4">
+            <AppHeaderBrand />
             <NotificationCenter userRole="student" userId={userId} />
           </div>
         </header>
