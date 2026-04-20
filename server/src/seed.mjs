@@ -62,16 +62,42 @@ const achievementTemplates = [
   { title: 'Победитель дебатного турнира', category: 'Общественная деятельность', level: 'Школьный', result: '1 место', points: 11 }
 ];
 
+const analyticsMonths = [
+  { year: 2025, month: 9 },
+  { year: 2025, month: 10 },
+  { year: 2025, month: 11 },
+  { year: 2025, month: 12 },
+  { year: 2026, month: 1 },
+  { year: 2026, month: 2 },
+  { year: 2026, month: 3 },
+  { year: 2026, month: 4 },
+  { year: 2026, month: 5 },
+  { year: 2026, month: 6 }
+];
+
+const statusSequence = [
+  'approved',
+  'approved',
+  'pending',
+  'approved',
+  'approved',
+  'rejected',
+  'approved',
+  'pending',
+  'approved',
+  'approved'
+];
+
 function buildAchievements(studentIndex) {
   const count = 2 + ((studentIndex * 5) % 9);
   const achievements = [];
 
   for (let offset = 0; offset < count; offset += 1) {
     const template = achievementTemplates[(studentIndex * 3 + offset) % achievementTemplates.length];
-    const year = 2023 + ((studentIndex + offset) % 3);
-    const month = ((studentIndex + offset * 2) % 12) + 1;
-    const day = ((studentIndex * 2 + offset * 3) % 27) + 1;
-    const points = template.points + ((studentIndex + offset) % 4);
+    const monthInfo = analyticsMonths[(studentIndex + offset) % analyticsMonths.length];
+    const day = ((studentIndex * 3 + offset * 2) % 20) + 5;
+    const points = template.points + ((studentIndex + offset) % 3) * 2;
+    const status = statusSequence[(studentIndex + offset) % statusSequence.length];
 
     achievements.push({
       title: template.title,
@@ -79,8 +105,8 @@ function buildAchievements(studentIndex) {
       level: template.level,
       result: template.result,
       points,
-      status: 'approved',
-      eventDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      status,
+      eventDate: `${monthInfo.year}-${String(monthInfo.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     });
   }
 
