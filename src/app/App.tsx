@@ -38,6 +38,7 @@ import { EventsCalendarScreen } from '@/app/components/calendar/EventsCalendarSc
 import { NewsAndAnnouncementsScreen } from '@/app/components/news/NewsAndAnnouncementsScreen';
 import { AchievementsListScreen } from '@/app/components/AchievementsListScreen';
 import { UserRecord, getCurrentUser, logout as backendLogout } from '@/app/backend/store';
+import { ensureFrontendSeedData } from '@/app/backend/runtimeSeed';
 
 type AppState = 'login' | 'student-registration' | 'app';
 type UserRole = 'admin' | 'curator' | 'student' | null;
@@ -51,6 +52,11 @@ function AppContent() {
   const resolvedCurrentUser = getCurrentUser();
 
   useEffect(() => {
+    if (ensureFrontendSeedData()) {
+      window.location.reload();
+      return;
+    }
+
     const restored = getCurrentUser();
     if (restored) {
       setUserRole(restored.role);
@@ -119,7 +125,7 @@ function AppContent() {
     );
   }
 
-  // ── Curator ─────────────────────────────────────────────────
+  // ── Curator ──────────────────────────────────────────────────
   if (userRole === 'curator') {
     return (
       <CuratorLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
@@ -141,7 +147,7 @@ function AppContent() {
     );
   }
 
-  // ── Student ─────────────────────────────────────────────────
+  // ── Student ──────────────────────────────────────────────────
   if (userRole === 'student') {
     return (
       <StudentLayout currentScreen={currentScreen} onNavigate={handleNavigate} onLogout={handleLogout} userId={resolvedCurrentUser?.id}>
