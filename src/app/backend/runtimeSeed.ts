@@ -75,6 +75,36 @@ const achievementTemplates: AchievementTemplate[] = [
   { achievementName: 'Участник регионального форума лидеров', category: 'Внеурочная деятельность', level: 'Региональный', result: 'Сертификат', expectedPoints: 30, document: 'Форум.pdf' },
 ];
 
+const analyticsMonths = [
+  { year: 2025, month: 9 },
+  { year: 2025, month: 10 },
+  { year: 2025, month: 11 },
+  { year: 2025, month: 12 },
+  { year: 2026, month: 1 },
+  { year: 2026, month: 2 },
+  { year: 2026, month: 3 },
+  { year: 2026, month: 4 },
+  { year: 2026, month: 5 },
+  { year: 2026, month: 6 },
+] as const;
+
+const statusSequence: PersistedAchievement['status'][] = [
+  'approved',
+  'approved',
+  'pending',
+  'approved',
+  'approved',
+  'rejected',
+  'approved',
+  'pending',
+  'approved',
+  'approved',
+];
+
+const analyticsPeriodStart = new Date(2025, 8, 1, 0, 0, 0, 0);
+const analyticsPeriodEnd = new Date(2026, 5, 30, 23, 59, 59, 999);
+const seedAchievementNames = new Set(achievementTemplates.map((template) => template.achievementName));
+
 function shortName(fullName: string) {
   const [lastName = '', firstName = '', middleName = ''] = fullName.split(' ');
   return `${lastName} ${firstName[0] ?? ''}.${middleName[0] ?? ''}.`;
@@ -84,16 +114,70 @@ function formatDate(day: number, month: number, year: number) {
   return `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
 }
 
+function parseAchievementDate(value?: string) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T00:00:00`);
+  const match = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return new Date(`${year}-${month}-${day}T00:00:00`);
+}
+
+function isWithinAnalyticsPeriod(date: Date) {
+  return date >= analyticsPeriodStart && date <= analyticsPeriodEnd;
+}
+
+function shouldRebuildStudentAchievements(studentAchievements: PersistedAchievement[]) {
+  if (!studentAchievements.length) return true;
+
+  const allSeedLike = studentAchievements.every((achievement) => seedAchievementNames.has(achievement.achievementName));
+  const hasOutOfPeriodDates = studentAchievements.some((achievement) => {
+    const parsedDate = parseAchievementDate(achievement.submittedDate || achievement.date);
+    return !parsedDate || !isWithinAnalyticsPeriod(parsedDate);
+  });
+
+  return allSeedLike && hasOutOfPeriodDates;
+}
+
 function buildAchievements(student: PersistedUser, studentIndex: number): Omit<PersistedAchievement, 'id'>[] {
   const count = 2 + ((studentIndex * 5) % 9);
   const achievements: Omit<PersistedAchievement, 'id'>[] = [];
 
   for (let offset = 0; offset < count; offset += 1) {
     const template = achievementTemplates[(studentIndex * 3 + offset) % achievementTemplates.length];
-    const year = 2023 + ((studentIndex + offset) % 3);
-    const month = ((studentIndex + offset * 2) % 12) + 1;
-    const day = ((studentIndex * 2 + offset * 3) % 27) + 1;
-    const date = formatDate(day, month, year);
+    const monthInfo = analyticsMonths[(studentIndex + offset) % analyticsMonths.length];
+    const status = statusSequence[(studentIndex + offset) % statusSequence.length];
+    const day = ((studentIndex * 3 + offset * 2) % 20) + 5;
+    const submittedDay = Math.max(1, day - (((studentIndex + offset) % 3) + 1));
+    const eventDate = formatDate(day, monthInfo.month, monthInfo.year);
+    const submittedDate = formatDate(submittedDay, monthInfo.month, monthInfo.year);
+    const expectedPoints = template.expectedPoints + ((studentIndex + offset) % 3) * 2;
+
+    const history: PersistedAchievement['history'] = [
+      { id: 1, action: 'created', user: shortName(student.name), userRole: 'Ученик', timestamp: `${submittedDate} 09:00` },
+    ];
+
+    if (status === 'approved') {
+      history.push({
+        id: 2,
+        action: 'approved',
+        user: 'Петров А.Н.',
+        userRole: 'Куратор',
+        timestamp: `${eventDate} 14:30`,
+        comment: 'Подтверждено куратором',
+      });
+    }
+
+    if (status === 'rejected') {
+      history.push({
+        id: 2,
+        action: 'rejected',
+        user: 'Петров А.Н.',
+        userRole: 'Куратор',
+        timestamp: `${eventDate} 13:10`,
+        comment: 'Не хватает подтверждающего документа',
+      });
+    }
 
     achievements.push({
       studentUserId: student.id,
@@ -103,16 +187,13 @@ function buildAchievements(student: PersistedUser, studentIndex: number): Omit<P
       category: template.category,
       level: template.level,
       result: template.result,
-      expectedPoints: template.expectedPoints,
-      date,
-      submittedDate: date,
+      expectedPoints,
+      date: eventDate,
+      submittedDate,
       documents: [template.document],
       description: `${template.achievementName} (${template.level})`,
-      status: 'approved',
-      history: [
-        { id: 1, action: 'created', user: shortName(student.name), userRole: 'Ученик', timestamp: `${date} 09:00` },
-        { id: 2, action: 'approved', user: 'Петров А.Н.', userRole: 'Куратор', timestamp: `${date} 10:30`, comment: 'Подтверждено куратором' },
-      ],
+      status,
+      history,
     });
   }
 
@@ -153,11 +234,20 @@ export function ensureFrontendSeedData() {
 
   const baseState = getBaseState();
   const users = [...baseState.users];
-  const achievements = [...baseState.achievements];
+  let achievements = [...baseState.achievements];
+  let classCatalog = [...baseState.classCatalog];
   const usersByLogin = new Map(users.map((user) => [user.login.toLowerCase(), user]));
+  const classCatalogSet = new Set(classCatalog.map((className) => className.trim()));
   let nextUserId = users.reduce((maxId, user) => Math.max(maxId, user.id), 0) + 1;
   let nextAchievementId = achievements.reduce((maxId, achievement) => Math.max(maxId, achievement.id), 0) + 1;
   let changed = false;
+
+  for (const [, , , className] of studentProfiles) {
+    if (classCatalogSet.has(className)) continue;
+    classCatalog.push(className);
+    classCatalogSet.add(className);
+    changed = true;
+  }
 
   for (const seedUser of [...curatorUsers, ...studentUsers]) {
     if (usersByLogin.has(seedUser.login.toLowerCase())) continue;
@@ -178,8 +268,13 @@ export function ensureFrontendSeedData() {
     const student = usersByLogin.get(login.toLowerCase());
     if (!student) return;
 
-    const hasAchievements = achievements.some((achievement) => achievement.studentUserId === student.id);
-    if (hasAchievements) return;
+    const existingAchievements = achievements.filter((achievement) => achievement.studentUserId === student.id);
+    if (!shouldRebuildStudentAchievements(existingAchievements)) return;
+
+    if (existingAchievements.length > 0) {
+      const removableIds = new Set(existingAchievements.map((achievement) => achievement.id));
+      achievements = achievements.filter((achievement) => !removableIds.has(achievement.id));
+    }
 
     for (const achievement of buildAchievements(student, index + 1)) {
       achievements.push({
@@ -194,10 +289,13 @@ export function ensureFrontendSeedData() {
 
   if (!changed) return false;
 
+  classCatalog = [...new Set(classCatalog)].sort((left, right) => left.localeCompare(right, 'ru', { numeric: true }));
+
   const nextState: PersistedState = {
     ...baseState,
     users,
     achievements,
+    classCatalog,
   };
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
