@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Home, Users, Award, TrendingUp, FileText, Settings, Shield, History, BarChart3, Calendar, Newspaper } from 'lucide-react';
 import { NotificationCenter } from '@/app/components/notifications/NotificationCenter';
+import { AppHeaderBrand } from '@/app/components/layouts/AppHeaderBrand';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -70,10 +71,8 @@ export function AdminLayout({ children, currentScreen, onNavigate, onLogout, use
       <div className="flex-1 flex flex-col">
         {/* Верхняя панель */}
         <header className="bg-white border-b border-gray-200 px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl text-gray-900 font-semibold truncate max-w-3xl">
-              Банк достижений учащихся МАОУ ОЦ2 города Челябинск
-            </h1>
+          <div className="flex items-center justify-between gap-4">
+            <AppHeaderBrand />
             <NotificationCenter userRole="admin" userId={userId} />
           </div>
         </header>
