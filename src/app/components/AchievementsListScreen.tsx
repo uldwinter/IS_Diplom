@@ -42,7 +42,9 @@ export function AchievementsListScreen() {
 
   return (
     <div className="space-y-6">
-      <div><h2 className="text-2xl text-gray-900 mb-2">Достижения учащихся</h2><p className="text-gray-600">Единый реестр достижений из backend</p></div>
+      <div>
+        <h2 className="text-2xl text-gray-900">Достижения учащихся</h2>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">{[['Всего', stats.total, 'text-gray-900'], ['Одобрено', stats.approved, 'text-green-700'], ['На проверке', stats.pending, 'text-yellow-700'], ['Отклонено', stats.rejected, 'text-red-700'], ['Баллы', stats.totalPoints, 'text-blue-700']].map(([l, v, c]) => <Card key={l as string}><CardContent className="p-4"><p className="text-sm text-gray-600">{l as string}</p><p className={`text-2xl font-semibold ${c}`}>{v as number}</p></CardContent></Card>)}</div>
 
