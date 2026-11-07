@@ -22,6 +22,7 @@ export function CuratorLayout({ children, currentScreen, onNavigate, onLogout, u
     { id: 'rating', label: 'Рейтинг', icon: TrendingUp },
     { id: 'analytics', label: 'Аналитика', icon: BarChart3 },
     { id: 'calendar', label: 'Календарь', icon: Calendar },
+    { id: 'settings', label: 'Настройки профиля', icon: Settings },
     { id: 'news', label: 'Новости и объявления', icon: Newspaper },
     { id: 'reports', label: 'Отчеты', icon: FileText },
   ];
@@ -85,3 +86,4 @@ export function CuratorLayout({ children, currentScreen, onNavigate, onLogout, u
     </div>
   );
 }
+

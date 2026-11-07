@@ -1,84 +1,330 @@
 openapi: 3.1.0
 info:
-  title: Gifted Children IS API
-  version: 1.0.0
+  title: Банк достижений учащихся
+  version: 2.0.0
 servers:
   - url: /api/v1
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  schemas:
-    LoginRequest:
-      type: object
-      required: [login, password]
-      properties:
-        login: { type: string }
-        password: { type: string }
-    TokenPair:
-      type: object
-      required: [accessToken, refreshToken, expiresIn]
-      properties:
-        accessToken: { type: string }
-        refreshToken: { type: string }
-        expiresIn: { type: integer }
-    User:
-      type: object
-      required: [id, login, name, role, status]
-      properties:
-        id: { type: integer }
-        login: { type: string }
-        name: { type: string }
-        email: { type: string }
-        role: { type: string, enum: [admin, curator, student] }
-        status: { type: string, enum: [active, inactive] }
+security:
+  - session: []
 paths:
+  /health:
+    servers: [{ url: / }]
+    get:
+      security: []
+      summary: Проверить соединение с PostgreSQL и наличие схемы
+      responses:
+        '200': { description: База подключена }
+        '500': { $ref: '#/components/responses/Error' }
+  /bootstrap:
+    get:
+      security: []
+      summary: Справочник классов и действующие правила начисления
+      responses:
+        '200':
+          description: Справочники
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [classCatalog, scoringRules, scoringVersion]
+                properties:
+                  classCatalog: { type: array, items: { type: string } }
+                  scoringRules: { type: object }
+                  scoringVersion: { type: integer }
   /auth/login:
     post:
-      summary: Login by credentials
+      security: []
+      summary: Войти и создать серверную сессию
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LoginRequest' }
+            schema:
+              type: object
+              required: [login, password]
+              properties:
+                login: { type: string }
+                password: { type: string, format: password }
       responses:
         '200':
-          description: Token pair
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/TokenPair' }
-  /auth/refresh:
-    post:
-      summary: Refresh access token
-      responses:
-        '200': { description: New token pair }
-  /users:
-    get:
-      security: [{ bearerAuth: [] }]
-      summary: List users (admin/curator)
-      responses:
-        '200':
-          description: List users
+          description: Профиль, разрешённый снимок данных и HttpOnly cookie
+          headers:
+            Set-Cookie: { schema: { type: string } }
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/User' }
-  /achievements:
-    get:
-      security: [{ bearerAuth: [] }]
-      summary: List achievements by role scope
-      responses:
-        '200': { description: Achievements list }
+                type: object
+                required: [ok, user, state]
+                properties:
+                  ok: { const: true }
+                  user: { $ref: '#/components/schemas/User' }
+                  state: { $ref: '#/components/schemas/State' }
+        '401': { $ref: '#/components/responses/Error' }
+        '423': { $ref: '#/components/responses/Error' }
+  /auth/logout:
     post:
-      security: [{ bearerAuth: [] }]
-      summary: Submit student achievement
+      security: []
+      summary: Завершить сессию и удалить cookie
       responses:
-        '201': { description: Created }
+        '200': { description: Сессия завершена }
+  /auth/me:
+    get:
+      summary: Получить актуальный профиль
+      responses:
+        '200':
+          description: Профиль текущего пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { const: true }
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Error' }
+  /state:
+    get:
+      summary: Получить данные, доступные текущей роли
+      responses:
+        '200':
+          description: Снимок данных с currentUserId
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/State' }
+        '401': { $ref: '#/components/responses/Error' }
+  /commands:
+    post:
+      summary: Выполнить операцию с проверкой прав и обновить снимок
+      description: >-
+        processAchievement принимает [id, action, comment, expectedHistoryId],
+        revokeAchievement принимает [id, comment, expectedHistoryId],
+        resubmitAchievement принимает [id, payload, expectedHistoryId].
+        expectedHistoryId равен id последней записи истории или 0 для старой заявки без истории.
+        Сохранение и запись в аудит выполняются в одной транзакции.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, args]
+              properties:
+                name:
+                  type: string
+                  enum:
+                    [
+                      processRegistration,
+                      addUser,
+                      updateUser,
+                      deleteUser,
+                      submitAchievement,
+                      resubmitAchievement,
+                      processAchievement,
+                      revokeAchievement,
+                      addClassToCatalog,
+                      removeClassFromCatalog,
+                      setScoringRules,
+                      markNotificationRead,
+                      markAllNotificationsRead,
+                      deleteNotification,
+                      saveUserSettings,
+                      updateCurrentUserProfile,
+                      changeCurrentUserPassword,
+                      addCalendarEvent,
+                      updateCalendarEvent,
+                      deleteCalendarEvent,
+                      addNewsItem,
+                      updateNewsItem,
+                      deleteNewsItem,
+                      addSection,
+                      deleteSection,
+                      addSectionApplication,
+                      updateSectionApplicationStatus,
+                      bulkImportStudents,
+                      promoteStudents,
+                    ]
+                args: { type: array, maxItems: 10 }
+      responses:
+        '200':
+          description: Обновлённый снимок
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, state]
+                properties:
+                  ok: { const: true }
+                  state: { $ref: '#/components/schemas/State' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
   /registrations:
     post:
-      summary: Create public student registration request
+      security: []
+      summary: Подать заявку на регистрацию ученика
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Registration' }
       responses:
-        '201': { description: Created }
+        '201':
+          description: Заявка сохранена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { const: true }
+                  id: { type: integer }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /documents:
+    post:
+      summary: Загрузить файл до 4 МиБ и получить ссылку для заявки
+      parameters:
+        - name: X-File-Name
+          in: header
+          required: true
+          schema: { type: string }
+          description: Имя файла после encodeURIComponent
+      requestBody:
+        required: true
+        content:
+          application/pdf: { schema: { type: string, format: binary } }
+          image/jpeg: { schema: { type: string, format: binary } }
+          image/png: { schema: { type: string, format: binary } }
+      responses:
+        '201':
+          description: Файл сохранён
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { const: true }
+                  document: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+  /documents/{id}:
+    get:
+      summary: Скачать файл владельцем или сотрудником
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Бинарный файл с Content-Disposition attachment }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /backup:
+    get:
+      summary: Скачать полную резервную копию администратором
+      responses:
+        '200':
+          description: Потоковый JSON с данными и файлами
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Backup' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /restore:
+    post:
+      summary: Восстановить резервную копию до 4 МиБ администратором
+      description: Валидная копия заменяет доменные данные, сохраняет журнал и завершает прежние сессии. Для больших копий используется CLI.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Backup' }
+      responses:
+        '200':
+          description: Копия восстановлена. Требуется вход.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { const: true }
+                  requiresLogin: { const: true }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: achievement_session
+  responses:
+    Error:
+      description: Операция не выполнена
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ok, message]
+            properties:
+              ok: { const: false }
+              message: { type: string }
+  schemas:
+    User:
+      type: object
+      required: [id, name, role, status]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        login: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [admin, curator, student] }
+        status: { type: string, enum: [active, inactive] }
+    State:
+      type: object
+      required:
+        [currentUserId, users, achievements, registrations, classCatalog]
+      properties:
+        currentUserId: { type: integer }
+        users: { type: array, items: { $ref: '#/components/schemas/User' } }
+        achievements: { type: array, items: { type: object } }
+        registrations: { type: array, items: { type: object } }
+        classCatalog: { type: array, items: { type: string } }
+    Registration:
+      type: object
+      required:
+        [
+          lastName,
+          firstName,
+          email,
+          class,
+          birthDate,
+          parentEmail,
+          parentPhone,
+          login,
+          password,
+        ]
+      properties:
+        lastName: { type: string }
+        firstName: { type: string }
+        middleName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        class: { type: string }
+        birthDate: { type: string, format: date }
+        parentEmail: { type: string, format: email }
+        parentPhone: { type: string }
+        login: { type: string }
+        password: { type: string, format: password, minLength: 8 }
+    Backup:
+      type: object
+      required: [format, state, documents]
+      properties:
+        format: { const: achievement-bank-backup-v1 }
+        exportedAt: { type: string, format: date-time }
+        state: { type: object }
+        documents: { type: array, items: { type: object } }

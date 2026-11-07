@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const apiTarget = process.env.API_DEV_TARGET || 'http://127.0.0.1:8080'
 
 export default defineConfig({
   plugins: [
@@ -13,6 +14,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: { proxy: { '/api': { target: apiTarget, changeOrigin: false }, '/health': apiTarget } },
   resolve: {
     alias: {
       // Alias @ to the src directory
@@ -20,3 +22,4 @@ export default defineConfig({
     },
   },
 })
+

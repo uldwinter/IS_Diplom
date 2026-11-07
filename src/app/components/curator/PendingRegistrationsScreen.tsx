@@ -1,3 +1,5 @@
+import { formatDate } from '@/app/components/formatDate';
+import { useMutation } from '@/app/components/useMutation';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -11,6 +13,7 @@ import { toast } from 'sonner';
 import { processRegistration, RegistrationRequest, useBackendState } from '@/app/backend/store';
 
 export function PendingRegistrationsScreen() {
+  const { pending, execute } = useMutation();
   const { registrations } = useBackendState();
   const [selectedRegistration, setSelectedRegistration] = useState<RegistrationRequest | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -27,10 +30,12 @@ export function PendingRegistrationsScreen() {
     setComment('');
   };
 
-  const handleSubmitAction = () => {
+  const handleSubmitAction = async () => {
     if (!selectedRegistration || !actionType) return;
 
-    processRegistration(selectedRegistration.id, actionType, comment);
+    if (actionType === 'reject' && !comment.trim()) return toast.error('Укажите причину отклонения');
+    const result = await execute(() => processRegistration(selectedRegistration.id, actionType, comment));
+    if (!result?.ok) return;
 
     toast.success(
       actionType === 'approve'
@@ -68,7 +73,7 @@ export function PendingRegistrationsScreen() {
                 ) : (
                   pendingList.map((registration) => (
                     <TableRow key={registration.id} className="hover:bg-gray-50">
-                      <TableCell className="text-sm text-gray-600">{registration.submittedAt}</TableCell>
+                      <TableCell className="text-sm text-gray-600">{formatDate(registration.submittedAt, true)}</TableCell>
                       <TableCell className="font-medium">{registration.lastName} {registration.firstName} {registration.middleName}</TableCell>
                       <TableCell><Badge variant="outline">{registration.class}</Badge></TableCell>
                       <TableCell className="text-sm">{registration.email}</TableCell>
@@ -116,12 +121,12 @@ export function PendingRegistrationsScreen() {
               ) : (
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label>Комментарий (необязательно)</Label>
+                    <Label>Комментарий (при отклонении обязателен)</Label>
                     <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} />
                   </div>
                   <div className="flex gap-3">
                     <Button onClick={() => setActionType(null)} variant="outline" className="flex-1">Назад</Button>
-                    <Button onClick={handleSubmitAction} className={`flex-1 ${actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
+                    <Button disabled={pending} onClick={handleSubmitAction} className={`flex-1 ${actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
                       {actionType === 'approve' ? 'Подтвердить регистрацию' : 'Отклонить заявку'}
                     </Button>
                   </div>
@@ -134,3 +139,4 @@ export function PendingRegistrationsScreen() {
     </div>
   );
 }
+

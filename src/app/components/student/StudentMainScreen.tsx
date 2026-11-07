@@ -1,3 +1,4 @@
+import { formatDate } from '@/app/components/formatDate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
@@ -121,7 +122,7 @@ export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
               <div key={achievement.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-md">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{achievement.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{achievement.date}</p>
+                  <p className="text-xs text-gray-500 mt-1">{formatDate(achievement.date)}</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
@@ -196,3 +197,4 @@ export function StudentMainScreen({ onNavigate }: StudentMainScreenProps) {
     </div>
   );
 }
+

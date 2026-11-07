@@ -1,19 +1,29 @@
-# Server-ready backend contracts
+# Сервер банка достижений
 
-This folder contains production-ready backend artifacts required to move from browser-only state to real API + DB architecture.
+Сервер использует PostgreSQL для пользователей, заявок, достижений, журнала и сессий. Файлы сохраняются отдельно от снимка данных в таблице `application_documents`. Express проверяет актуальные права пользователя при каждой операции. Контракт API находится в `contracts/openapi.yaml`.
 
-## Included
-- `contracts/openapi.yaml` — REST API contracts (auth, users, achievements, registrations).
-- `migrations/001_init.sql` — PostgreSQL initial schema.
+## Запуск
 
-## Security requirements covered by contract/schema
-- Password hashes only (`password_hash`) on server side (bcrypt/argon2 at app layer).
-- Refresh session table with token hash + device + IP.
-- Login lock controls (`failed_login_attempts`, `locked_until`).
-- Audit log storage with device/IP.
+1. Скопируйте `.env.example` в `.env` и настройте соединение. Поддерживаются `DATABASE_URL` или параметры `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
+2. Выполните `npm ci` и `npm run migrate` в каталоге `server`. Миграция один раз переносит прежние серверные записи в новую схему и сохраняет исходные таблицы. В рабочем окружении старые демонстрационные аккаунты с исходными паролями деактивируются. Действующие учётные записи с другими паролями сохраняются.
+3. Для пустой базы передайте `ADMIN_LOGIN`, `ADMIN_EMAIL` и `ADMIN_PASSWORD` в окружение команды `npm run bootstrap`. Пароль должен содержать не меньше 12 символов и не больше 72 байт. После создания администратора удалите `ADMIN_PASSWORD` из окружения.
+4. Запустите `npm start`. Для публичного запуска задайте `NODE_ENV=production` и `APP_ORIGIN` с точным адресом сайта по HTTPS. Клиент и API должны быть доступны с одного origin. `TRUST_PROXY=1` используется за одним доверенным reverse proxy.
 
-## Suggested implementation stack
-- Node.js + Fastify/Express + Zod validation
-- PostgreSQL + migration runner
-- JWT access token + hashed refresh token rotation
-- RBAC middleware (`admin`, `curator`, `student`) per endpoint
+Для локальной демонстрации можно выполнить `ALLOW_DEMO_SEED=true npm run seed` после миграции пустой отдельной базы. Команда создаёт демо-учётные записи `admin`, `curator` и `student` и выводит формат их паролей. `NODE_ENV=production` блокирует эту команду.
+
+## Документы и резервные копии
+
+Поддерживаются PDF, JPG и PNG до 4 МиБ на файл. Сервер проверяет сигнатуру, тип файла и права скачивания. В импортированных достижениях без исходных документов список вложений остаётся пустым. Для подтверждения новой заявки требуется настоящее вложение.
+
+Администратор может скачать полный JSON с данными и файлами. Через браузер можно восстановить копию до 4 МиБ. Для крупных копий используйте CLI с прямым подключением к базе. `ADMIN_LOGIN` указывает действующего администратора для записи в журнал.
+
+```sh
+npm run backup -- export ./backup-2026-11-07.json
+npm run backup -- restore ./backup-2026-11-07.json
+```
+
+Команда экспорта создаёт файл с доступом владельца и сохраняет имеющиеся файлы с тем же именем. Копия включает персональные данные и хеши паролей. Храните её в защищённом месте. Восстановление проверяет схему и ссылки, записывает новые данные одной транзакцией и завершает прежние сессии. Проверьте процедуру на отдельной базе перед восстановлением рабочей.
+
+## Проверки
+
+`npm test` проверяет API и миграции через встроенный PostgreSQL. Полный сценарий использует отдельные HTTP-сеансы ученика и куратора, загрузку PDF, модерацию, резервное копирование и восстановление.

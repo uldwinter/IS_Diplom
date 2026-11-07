@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Toaster } from 'sonner';
-import { AppProvider } from '@/app/lib/AppContext';
+import { Toaster, toast } from 'sonner';
 import { SectionsProvider } from '@/app/components/sections/SectionsContext';
 
 import { LoginScreen } from '@/app/components/LoginScreen';
@@ -37,36 +36,30 @@ import { VisualCalendarScreen } from '@/app/components/calendar/VisualCalendarSc
 import { EventsCalendarScreen } from '@/app/components/calendar/EventsCalendarScreen';
 import { NewsAndAnnouncementsScreen } from '@/app/components/news/NewsAndAnnouncementsScreen';
 import { AchievementsListScreen } from '@/app/components/AchievementsListScreen';
-import { UserRecord, getCurrentUser, logout as backendLogout } from '@/app/backend/store';
-import { ensureFrontendSeedData } from '@/app/backend/runtimeSeed';
+import { UserRecord, getCurrentUser, logout as backendLogout, initializeBackend, reconnectBackend, startBackendSync, useBackendState } from '@/app/backend/store';
 
 type AppState = 'login' | 'student-registration' | 'app';
-type UserRole = 'admin' | 'curator' | 'student' | null;
 type Screen = string;
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('main');
   const [appState, setAppState] = useState<AppState>('login');
-  const [userRole, setUserRole] = useState<UserRole>(null);
+  const backendState = useBackendState();
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const resolvedCurrentUser = getCurrentUser();
+  const userRole = resolvedCurrentUser?.role;
 
   useEffect(() => {
-    if (ensureFrontendSeedData()) {
-      window.location.reload();
-      return;
-    }
-
-    const restored = getCurrentUser();
-    if (restored) {
-      setUserRole(restored.role);
-      setAppState('app');
-      setCurrentScreen('main');
-    }
+    void initializeBackend();
+    return startBackendSync();
   }, []);
 
-  const handleLogin = (user: UserRecord) => {
-    setUserRole(user.role);
+  useEffect(() => {
+    if (backendState.currentUserId) setAppState('app');
+    else setAppState((previous) => previous === 'app' ? 'login' : previous);
+  }, [backendState.currentUserId]);
+
+  const handleLogin = (_user: UserRecord) => {
     setCurrentScreen('main');
     setAppState('app');
   };
@@ -86,13 +79,18 @@ function AppContent() {
     setSelectedStudentId(null);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const result = await backendLogout();
+    if (!result.ok) { toast.error(result.message); return; }
     setAppState('login');
-    setUserRole(null);
-    backendLogout();
     setCurrentScreen('main');
     setSelectedStudentId(null);
   };
+
+  if (backendState.connectionStatus === 'loading') return <p role="status" className="p-8">Подключение к системе…</p>;
+  if (backendState.connectionStatus === 'error' && !resolvedCurrentUser) {
+    return <main className="p-8 space-y-4"><h1>Система временно недоступна</h1><p role="alert">{backendState.connectionError}</p><button onClick={() => void reconnectBackend()}>Повторить подключение</button></main>;
+  }
 
   // Login screen
   if (appState === 'login') {
@@ -143,6 +141,7 @@ function AppContent() {
         {currentScreen === 'calendar' && <VisualCalendarScreen userRole="curator" />}
         {currentScreen === 'news' && <NewsAndAnnouncementsScreen canEdit={true} />}
         {currentScreen === 'reports' && <ReportsScreen />}
+        {currentScreen === 'settings' && <SettingsScreen />}
       </CuratorLayout>
     );
   }
@@ -158,6 +157,7 @@ function AppContent() {
         {currentScreen === 'portfolio' && <StudentPortfolioScreen />}
         {currentScreen === 'calendar' && <EventsCalendarScreen />}
         {currentScreen === 'news' && <NewsAndAnnouncementsScreen canEdit={false} />}
+        {currentScreen === 'settings' && <SettingsScreen />}
       </StudentLayout>
     );
   }
@@ -167,11 +167,17 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <SectionsProvider>
+    <SectionsProvider>
+        <ConnectionNotice />
         <AppContent />
         <Toaster position="top-right" richColors />
-      </SectionsProvider>
-    </AppProvider>
+    </SectionsProvider>
   );
+}
+
+
+function ConnectionNotice() {
+  const state = useBackendState();
+  if (!state.currentUserId || state.connectionStatus !== 'error') return null;
+  return <div role="alert" className="bg-amber-50 p-3 text-amber-900">{state.connectionError} Показаны последние полученные данные. <button onClick={() => void reconnectBackend()}>Повторить</button></div>;
 }

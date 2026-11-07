@@ -7,3 +7,9 @@ Dockerfile*
 docker-compose*.yml
 server/node_modules
 server/package-lock.json
+.env
+.env.*
+server/.env
+server/.env.*
+.vercel
+backups

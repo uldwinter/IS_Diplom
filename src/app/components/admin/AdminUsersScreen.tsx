@@ -1,3 +1,6 @@
+import { formatDate } from '@/app/components/formatDate';
+import { StudentDataOperations } from './StudentDataOperations';
+import { useMutation } from '@/app/components/useMutation';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -19,6 +22,7 @@ const getRoleBadge = (role: string) => role === 'admin' ? <Badge className="bg-r
 const getRoleIcon = (role: string) => role === 'admin' ? <ShieldCheck className="w-4 h-4 text-red-600" /> : role === 'curator' ? <UserCheck className="w-4 h-4 text-blue-600" /> : <GraduationCap className="w-4 h-4 text-green-600" />;
 
 export function AdminUsersScreen() {
+  const { pending, execute } = useMutation();
   const { users } = useBackendState();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -34,37 +38,39 @@ export function AdminUsersScreen() {
     return matchesSearch && matchesRole;
   });
 
-  const handleOpenAdd = () => { setFormData(EMPTY_FORM); setIsAddDialogOpen(true); };
+  const handleOpenAdd = () => { setSelectedUser(null); setFormData(EMPTY_FORM); setIsAddDialogOpen(true); };
   const handleOpenEdit = (user: UserRecord) => { setSelectedUser(user); setFormData({ ...EMPTY_FORM, ...user, password: '', class: user.class ?? '' }); setIsEditDialogOpen(true); };
   const handleOpenDelete = (user: UserRecord) => { setSelectedUser(user); setIsDeleteDialogOpen(true); };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!formData.name.trim() || !formData.email.trim() || !formData.login.trim() || !formData.password.trim()) return toast.error('Заполните обязательные поля');
-    const result = addUser({ name: formData.name, email: formData.email, login: formData.login, password: formData.password, role: formData.role, class: formData.role === 'student' ? formData.class : undefined, status: formData.status });
-    if (!result.ok) return toast.error(result.message);
+    const result = await execute(() => addUser({ name: formData.name, email: formData.email, login: formData.login, password: formData.password, role: formData.role, class: formData.role === 'student' ? formData.class : undefined, status: formData.status }));
+    if (!result?.ok) return;
     setIsAddDialogOpen(false); toast.success('Пользователь добавлен');
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedUser) return;
-    updateUser(selectedUser.id, { name: formData.name, email: formData.email, login: formData.login, ...(formData.password.trim() ? { password: formData.password } : {}), role: formData.role, class: formData.role === 'student' ? formData.class : undefined, status: formData.status });
+    const result = await execute(() => updateUser(selectedUser.id, { name: formData.name, email: formData.email, login: formData.login, ...(formData.password.trim() ? { password: formData.password } : {}), role: formData.role, class: formData.role === 'student' ? formData.class : undefined, status: formData.status }));
+    if (!result?.ok) return;
     setIsEditDialogOpen(false); toast.success('Пользователь обновлен');
   };
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!selectedUser) return;
-    deleteUser(selectedUser.id);
+    const result = await execute(() => deleteUser(selectedUser.id));
+    if (!result?.ok) return;
     setIsDeleteDialogOpen(false);
-    toast.success('Пользователь удален');
+    toast.success('Пользователь переведён в архив');
   };
 
-  const UserForm = () => (
+  const userForm = (
     <div className="space-y-3">
       <div className="space-y-2"><Label>ФИО</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
       <div className="space-y-2"><Label>Email</Label><Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2"><Label>Логин</Label><Input value={formData.login} onChange={(e) => setFormData({ ...formData, login: e.target.value })} /></div>
-        <div className="space-y-2"><Label>Пароль</Label><Input value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={selectedUser ? 'Оставьте пустым, чтобы не менять' : ''} /></div>
+        <div className="space-y-2"><Label>Пароль</Label><Input type="password" minLength={8} autoComplete="new-password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={selectedUser ? 'Оставьте пустым, чтобы не менять' : ''} /></div>
       </div>
       <div className="space-y-2"><Label>Роль</Label><Select value={formData.role} onValueChange={(v: UserRecord['role']) => setFormData({ ...formData, role: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="admin">Администратор</SelectItem><SelectItem value="curator">Куратор</SelectItem><SelectItem value="student">Ученик</SelectItem></SelectContent></Select></div>
       {formData.role === 'student' && <div className="space-y-2"><Label>Класс</Label><Input value={formData.class} onChange={(e) => setFormData({ ...formData, class: e.target.value })} /></div>}
@@ -74,13 +80,15 @@ export function AdminUsersScreen() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h2 className="text-2xl text-gray-900 mb-2">Управление пользователями</h2><p className="text-gray-600">Пользователи и их учетные данные</p></div><Button onClick={handleOpenAdd} className="bg-blue-600 hover:bg-blue-700 gap-2"><Plus className="w-4 h-4" />Добавить пользователя</Button></div>
+      <div className="flex items-center justify-between"><div><h2 className="text-2xl text-gray-900 mb-2">Управление пользователями</h2><p className="text-gray-600">Пользователи и их учетные данные</p></div><Button disabled={pending} onClick={handleOpenAdd} className="bg-blue-600 hover:bg-blue-700 gap-2"><Plus className="w-4 h-4" />Добавить пользователя</Button></div>
       <Card><CardContent className="p-4"><div className="flex gap-4"><div className="flex-1 relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input placeholder="Поиск по имени, email или логину" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-white" /></div><Select value={roleFilter} onValueChange={setRoleFilter}><SelectTrigger className="w-48 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Все роли</SelectItem><SelectItem value="admin">Администраторы</SelectItem><SelectItem value="curator">Кураторы</SelectItem><SelectItem value="student">Ученики</SelectItem></SelectContent></Select></div></CardContent></Card>
-      <Card><CardHeader><CardTitle>Список пользователей ({filteredUsers.length})</CardTitle></CardHeader><CardContent><div className="border rounded-md"><Table><TableHeader><TableRow className="bg-gray-50"><TableHead>Пользователь</TableHead><TableHead>Логин</TableHead><TableHead>Email</TableHead><TableHead>Роль</TableHead><TableHead>Класс</TableHead><TableHead>Статус</TableHead><TableHead>Последний вход</TableHead><TableHead>Действия</TableHead></TableRow></TableHeader><TableBody>{filteredUsers.map((user) => <TableRow key={user.id}><TableCell><div className="flex items-center gap-2">{getRoleIcon(user.role)}<span className="font-medium">{user.name}</span></div></TableCell><TableCell>{user.login}</TableCell><TableCell>{user.email}</TableCell><TableCell>{getRoleBadge(user.role)}</TableCell><TableCell>{user.class || '-'}</TableCell><TableCell>{user.status}</TableCell><TableCell>{user.lastLogin}</TableCell><TableCell><div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => handleOpenEdit(user)}><Edit className="w-4 h-4" /></Button><Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleOpenDelete(user)}><Trash2 className="w-4 h-4" /></Button></div></TableCell></TableRow>)}</TableBody></Table></div></CardContent></Card>
+      <Card><CardHeader><CardTitle>Список пользователей ({filteredUsers.length})</CardTitle></CardHeader><CardContent><div className="border rounded-md"><Table><TableHeader><TableRow className="bg-gray-50"><TableHead>Пользователь</TableHead><TableHead>Логин</TableHead><TableHead>Email</TableHead><TableHead>Роль</TableHead><TableHead>Класс</TableHead><TableHead>Статус</TableHead><TableHead>Последний вход</TableHead><TableHead>Действия</TableHead></TableRow></TableHeader><TableBody>{filteredUsers.map((user) => <TableRow key={user.id}><TableCell><div className="flex items-center gap-2">{getRoleIcon(user.role)}<span className="font-medium">{user.name}</span></div></TableCell><TableCell>{user.login}</TableCell><TableCell>{user.email}</TableCell><TableCell>{getRoleBadge(user.role)}</TableCell><TableCell>{user.class || '-'}</TableCell><TableCell>{user.status}</TableCell><TableCell>{formatDate(user.lastLogin, true)}</TableCell><TableCell><div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => handleOpenEdit(user)}><Edit className="w-4 h-4" /></Button><Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleOpenDelete(user)}><Trash2 className="w-4 h-4" /></Button></div></TableCell></TableRow>)}</TableBody></Table></div></CardContent></Card>
 
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Добавить пользователя</DialogTitle><DialogDescription>Новый пользователь сможет войти через главную страницу</DialogDescription></DialogHeader><UserForm /><DialogFooter><Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Отмена</Button><Button onClick={handleAddUser}>Добавить</Button></DialogFooter></DialogContent></Dialog>
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Редактировать пользователя</DialogTitle></DialogHeader><UserForm /><DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Отмена</Button><Button onClick={handleSaveEdit}>Сохранить</Button></DialogFooter></DialogContent></Dialog>
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Удалить пользователя</DialogTitle></DialogHeader><div className="flex items-start gap-3 p-4 bg-red-50 rounded-md"><AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" /><div><p className="text-sm font-medium">Вы действительно хотите удалить пользователя?</p><p className="text-sm mt-1 font-semibold">{selectedUser?.name}</p></div></div><DialogFooter><Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Отмена</Button><Button onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700">Удалить</Button></DialogFooter></DialogContent></Dialog>
+      <StudentDataOperations />
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Добавить пользователя</DialogTitle><DialogDescription>Новый пользователь сможет войти через главную страницу</DialogDescription></DialogHeader>{userForm}<DialogFooter><Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Отмена</Button><Button disabled={pending} onClick={handleAddUser}>Добавить</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Редактировать пользователя</DialogTitle></DialogHeader>{userForm}<DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Отмена</Button><Button disabled={pending} onClick={handleSaveEdit}>Сохранить</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Архивировать пользователя</DialogTitle></DialogHeader><div className="flex items-start gap-3 p-4 bg-red-50 rounded-md"><AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" /><div><p className="text-sm font-medium">Доступ будет отключён. Достижения и история сохранятся.</p><p className="text-sm mt-1 font-semibold">{selectedUser?.name}</p></div></div><DialogFooter><Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Отмена</Button><Button disabled={pending} onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700">Архивировать</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
+

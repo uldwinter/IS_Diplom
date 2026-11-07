@@ -1,166 +1,97 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/app/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
-import { FileText, Download, CheckCircle } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBackendState } from '@/app/backend/store';
+import { type AcademicPeriod, PERIOD_LABELS, availableAcademicYears, currentAcademicYear, inAcademicPeriod, periodLabel, studentClassForYear, classCollator, parseAchievementDate } from '@/app/lib/academic';
+import { downloadText, printableHtml, printReport, tableHtml, toCsv } from '@/app/lib/export';
+
+type GeneratedReport = { title: string; period: string; generatedAt: string; headers: string[]; rows: Array<Array<string | number>> };
+const statusLabel = (status: string) => status === 'approved' ? 'Одобрено' : status === 'pending' ? 'На проверке' : 'Отклонено';
 
 export function ReportsScreen() {
   const { users, achievements } = useBackendState();
+  const [year, setYear] = useState(currentAcademicYear);
+  const [period, setPeriod] = useState<AcademicPeriod>('all');
   const [classValue, setClassValue] = useState('');
-  const [periodClass, setPeriodClass] = useState('');
-  const [studentClass, setStudentClass] = useState('');
+  const [studentClass, setStudentClass] = useState('all');
   const [studentId, setStudentId] = useState('');
-  const [periodStudent, setPeriodStudent] = useState('');
+  const [report, setReport] = useState<GeneratedReport | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportType, setReportType] = useState<'class' | 'student' | null>(null);
-  const [reportData, setReportData] = useState<any>(null);
-
-  const students = users.filter((u) => u.role === 'student');
-  const classes = Array.from(new Set(students.map((s) => s.class ?? '—'))).sort();
-  const filteredStudents = students.filter((s) => !studentClass || s.class === studentClass);
-
-  const parseRuDate = (value: string) => {
-    const trimmed = value?.trim();
-    if (!trimmed) return null;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return new Date(`${trimmed}T00:00:00`);
-    const match = trimmed.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (!match) return null;
-    const [, day, month, year] = match;
-    return new Date(`${year}-${month}-${day}T00:00:00`);
+  const students = users.filter((user) => user.role === 'student');
+  const years = availableAcademicYears(achievements, new Date(), students);
+  const periodAchievements = achievements.filter((event) => inAcademicPeriod(event.date, year, period));
+  const classes = [...new Set([
+    ...students.map((student) => studentClassForYear(student, achievements, year)),
+    ...periodAchievements.map((event) => event.studentClass),
+  ])].filter((className) => className && className !== '—').sort(classCollator.compare);
+  const studentMatchesClass = (id: number, className: string) => {
+    const student = students.find((item) => item.id === id);
+    return !!student && (studentClassForYear(student, achievements, year) === className || periodAchievements.some((event) => event.studentUserId === id && event.studentClass === className));
   };
-
-  const isInPeriod = (dateValue: string, period: string) => {
-    if (period === 'all') return true;
-    const date = parseRuDate(dateValue);
-    if (!date || Number.isNaN(date.getTime())) return false;
-    const month = date.getMonth() + 1;
-    if (period === 'current') {
-      const nowDate = new Date();
-      const currentYear = nowDate.getFullYear();
-      const currentMonth = nowDate.getMonth() + 1;
-      const academicYearStart = currentMonth >= 9 ? currentYear : currentYear - 1;
-      const academicYearEnd = academicYearStart + 1;
-      const dateYear = date.getFullYear();
-      return (dateYear === academicYearStart && month >= 9) || (dateYear === academicYearEnd && month <= 8);
-    }
-    if (period === 'q1') return month >= 9 && month <= 11;
-    if (period === 'q2') return month === 12 || month <= 2;
-    if (period === 'q3') return month >= 3 && month <= 5;
-    if (period === 'q4') return month >= 6 && month <= 8;
-    return true;
+  const filteredStudents = students.filter((student) => studentClass === 'all' || studentMatchesClass(student.id, studentClass));
+  const changeYear = (value: string) => { setYear(value); setPeriod('all'); setClassValue(''); setStudentClass('all'); setStudentId(''); };
+  const saveReport = (title: string, headers: string[], rows: GeneratedReport['rows']) => {
+    setReport({ title, headers, rows, period: periodLabel(year, period), generatedAt: new Date().toLocaleString('ru-RU') });
+    setReportDialogOpen(true);
   };
-
   const handleGenerateClassReport = () => {
-    if (!classValue || !periodClass) return toast.error('Заполните все поля отчета по классу');
-    const classStudents = students.filter((s) => s.class === classValue);
-    const data = classStudents.map((s) => {
-      const approved = achievements.filter((a) => (
-        a.studentUserId === s.id &&
-        a.status === 'approved' &&
-        isInPeriod(a.date, periodClass)
-      ));
-      return { name: s.name, points: approved.reduce((sum, a) => sum + a.expectedPoints, 0), achievements: approved.length };
-    }).sort((a, b) => b.points - a.points);
-    setReportData({ class: classValue, period: periodClass, students: data });
-    setReportType('class');
-    setReportDialogOpen(true);
+    if (!classValue || !classes.includes(classValue)) return toast.error('Выберите класс');
+    const approved = periodAchievements.filter((event) => event.status === 'approved' && event.studentClass === classValue);
+    const ids = new Set(students.filter((student) => studentMatchesClass(student.id, classValue)).map((student) => student.id));
+    approved.forEach((event) => ids.add(event.studentUserId));
+    const rows = [...ids].map((id) => {
+      const mine = approved.filter((event) => event.studentUserId === id);
+      const name = students.find((student) => student.id === id)?.name || mine[0]?.studentName || `Ученик #${id}`;
+      return { name, points: mine.reduce((total, event) => total + event.expectedPoints, 0), count: mine.length };
+    }).sort((left, right) => right.points - left.points || classCollator.compare(left.name, right.name));
+    saveReport(`Отчёт по классу ${classValue}`, ['Ученик', 'Подтверждённые баллы', 'Подтверждённые достижения'], rows.map((row) => [row.name, row.points, row.count]));
   };
-
   const handleGenerateStudentReport = () => {
-    if (!studentId || !periodStudent) return toast.error('Заполните все поля отчета по ученику');
-    const student = students.find((s) => String(s.id) === studentId);
-    if (!student) return toast.error('Ученик не найден');
-    const data = achievements
-      .filter((a) => a.studentUserId === student.id && isInPeriod(a.date, periodStudent))
-      .map((a) => ({ achievement: a.achievementName, category: a.category, points: a.expectedPoints, status: a.status, date: a.date }));
-    setReportData({ studentName: student.name, period: periodStudent, achievements: data });
-    setReportType('student');
-    setReportDialogOpen(true);
+    const student = filteredStudents.find((item) => String(item.id) === studentId);
+    if (!student) return toast.error('Выберите ученика');
+    const rows = periodAchievements.filter((event) => event.studentUserId === student.id && (studentClass === 'all' || event.studentClass === studentClass))
+      .sort((left, right) => (parseAchievementDate(left.date)?.getTime() ?? 0) - (parseAchievementDate(right.date)?.getTime() ?? 0));
+    saveReport(`Отчёт по ученику: ${student.name}`, ['Достижение', 'Класс на дату события', 'Категория', 'Утверждённые баллы', 'Статус', 'Дата события'], rows.map((event) => [event.achievementName, event.studentClass, event.category, event.status === 'approved' ? event.expectedPoints : 0, statusLabel(event.status), event.date]));
   };
-
-  const handleDownload = (format: 'excel' | 'word' | 'pdf') => {
-    if (!reportData || !reportType) {
-      toast.error('Нет данных для экспорта отчёта');
-      return;
-    }
-    const toCsv = () => {
-      if (reportType === 'class') {
-        const header = ['Ученик', 'Баллы', 'Достижения'];
-        const rows = (reportData.students ?? []).map((s: any) => [s.name, s.points, s.achievements]);
-        return [header, ...rows].map((row) => row.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-      }
-      const header = ['Достижение', 'Категория', 'Баллы', 'Статус', 'Дата'];
-      const rows = (reportData.achievements ?? []).map((a: any) => [a.achievement, a.category, a.points, statusLabel(a.status), a.date]);
-      return [header, ...rows].map((row) => row.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-    };
-    const classSafe = String(reportData?.class ?? 'class').replace(/[^\w.-]+/g, '-');
-    const studentSafe = String(reportData?.studentName ?? 'student').replace(/[^\w.-]+/g, '-');
-    const baseName = reportType === 'class' ? `report-class-${classSafe}` : `report-student-${studentSafe}`;
-
-    if (format === 'excel') {
-      const blob = new Blob(["\uFEFF" + toCsv()], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${baseName}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Отчёт экспортирован в Excel-совместимый CSV');
-      setReportDialogOpen(false);
-      return;
-    }
-
-    const html = `
-      <html><head><meta charset="utf-8"><title>${baseName}</title></head>
-      <body><h2>${reportType === 'class' ? `Отчёт по классу ${reportData?.class}` : `Отчёт по ученику ${reportData?.studentName}`}</h2>
-      <pre>${toCsv()}</pre></body></html>
-    `;
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    if (format === 'word') {
-      a.download = `${baseName}.doc`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Отчёт экспортирован в Word (DOC)');
-      setReportDialogOpen(false);
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return toast.error('Не удалось открыть окно печати PDF');
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-    URL.revokeObjectURL(url);
-    toast.success('Открыто окно печати. Сохраните документ как PDF');
-    setReportDialogOpen(false);
+  const exportReport = (format: 'csv' | 'html' | 'pdf') => {
+    if (!report) return;
+    const description = `${report.period}. По дате достижения; класс на дату события. Сформировано: ${report.generatedAt}.`;
+    const html = printableHtml(report.title, description, tableHtml(report.headers, report.rows));
+    const filename = `report-${new Date().toISOString().slice(0, 10)}`;
+    if (format === 'csv') downloadText('\uFEFF' + toCsv([['Отчёт', report.title], ['Период', report.period], ['Сформировано', report.generatedAt], report.headers, ...report.rows]), `${filename}.csv`, 'text/csv;charset=utf-8');
+    else if (format === 'html') downloadText(html, `${filename}.html`, 'text/html;charset=utf-8');
+    else if (!printReport(html)) return toast.error('Разрешите открытие окна печати');
+    toast.success(format === 'pdf' ? 'Открыта печатная версия. Выберите «Сохранить как PDF».' : 'Отчёт сохранён');
   };
-
-  const statusLabel = (status: string) => status === 'approved' ? 'Одобрено' : status === 'pending' ? 'На проверке' : 'Отклонено';
 
   return (
     <div className="space-y-6">
-      <div><h2 className="text-2xl text-gray-900 mb-2">Отчеты</h2><p className="text-gray-600">Формирование отчетов по реальным данным системы</p></div>
+      <div><h2 className="text-2xl text-gray-900 mb-2">Отчеты</h2><p className="text-gray-600">По дате достижения и классу на дату события. Баллы учитываются только после подтверждения.</p></div>
+      <Card><CardContent className="p-4 grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2"><Label htmlFor="reports-year">Учебный год</Label><Select value={year} onValueChange={changeYear}><SelectTrigger id="reports-year"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">За все годы</SelectItem>{years.map((value) => <SelectItem key={value} value={value}>{value.replace('-', '/')}</SelectItem>)}</SelectContent></Select></div>
+        <div className="space-y-2"><Label htmlFor="reports-period">Период</Label><Select value={period} onValueChange={(value) => setPeriod(value as AcademicPeriod)} disabled={year === 'all'}><SelectTrigger id="reports-period"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(PERIOD_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{year === 'all' && value === 'all' ? 'За все годы' : label}</SelectItem>)}</SelectContent></Select></div>
+        <p className="text-xs text-gray-500 sm:col-span-2">Учебный год: 1 сентября — 31 августа. Календарные границы четвертей указаны в списке периодов.</p>
+      </CardContent></Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card><CardHeader><div className="flex items-start gap-3"><div className="p-2 bg-blue-50 rounded-md"><FileText className="w-5 h-5 text-blue-600" /></div><div><CardTitle>Отчет по классу</CardTitle><CardDescription>Сводный отчет по баллам и достижениям</CardDescription></div></div></CardHeader><CardContent className="space-y-4"><div className="space-y-2"><Label>Класс</Label><Select value={classValue} onValueChange={setClassValue}><SelectTrigger className="bg-white"><SelectValue placeholder="Выберите класс" /></SelectTrigger><SelectContent>{classes.map((cls) => <SelectItem key={cls} value={cls}>{cls}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Период</Label><Select value={periodClass} onValueChange={setPeriodClass}><SelectTrigger className="bg-white"><SelectValue placeholder="Выберите период" /></SelectTrigger><SelectContent><SelectItem value="current">Текущий учебный год</SelectItem><SelectItem value="q1">1 четверть</SelectItem><SelectItem value="q2">2 четверть</SelectItem><SelectItem value="q3">3 четверть</SelectItem><SelectItem value="q4">4 четверть</SelectItem><SelectItem value="all">За все время</SelectItem></SelectContent></Select></div><Button onClick={handleGenerateClassReport} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><Download className="w-4 h-4" />Сформировать отчет</Button></CardContent></Card>
-
-        <Card><CardHeader><div className="flex items-start gap-3"><div className="p-2 bg-green-50 rounded-md"><FileText className="w-5 h-5 text-green-600" /></div><div><CardTitle>Отчет по ученику</CardTitle><CardDescription>Индивидуальная детализация достижений</CardDescription></div></div></CardHeader><CardContent className="space-y-4"><div className="space-y-2"><Label>Класс</Label><Select value={studentClass} onValueChange={(v) => { setStudentClass(v); setStudentId(''); }}><SelectTrigger className="bg-white"><SelectValue placeholder="Выберите класс" /></SelectTrigger><SelectContent>{classes.map((cls) => <SelectItem key={cls} value={cls}>{cls}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Учащийся</Label><Select value={studentId} onValueChange={setStudentId}><SelectTrigger className="bg-white"><SelectValue placeholder="Выберите учащегося" /></SelectTrigger><SelectContent>{filteredStudents.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Период</Label><Select value={periodStudent} onValueChange={setPeriodStudent}><SelectTrigger className="bg-white"><SelectValue placeholder="Выберите период" /></SelectTrigger><SelectContent><SelectItem value="current">Текущий учебный год</SelectItem><SelectItem value="q1">1 четверть</SelectItem><SelectItem value="q2">2 четверть</SelectItem><SelectItem value="q3">3 четверть</SelectItem><SelectItem value="q4">4 четверть</SelectItem><SelectItem value="all">За все время</SelectItem></SelectContent></Select></div><Button onClick={handleGenerateStudentReport} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><Download className="w-4 h-4" />Сформировать отчет</Button></CardContent></Card>
+        <Card><CardHeader><FileText className="w-5 h-5 text-blue-600" /><CardTitle>Отчет по классу</CardTitle><CardDescription>Подтверждённые достижения выбранного класса за период</CardDescription></CardHeader><CardContent className="space-y-4">
+          <div className="space-y-2"><Label htmlFor="report-class">Класс</Label><Select value={classValue} onValueChange={setClassValue}><SelectTrigger id="report-class"><SelectValue placeholder="Выберите класс" /></SelectTrigger><SelectContent>{classes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
+          <Button onClick={handleGenerateClassReport} className="w-full gap-2"><Download className="w-4 h-4" />Сформировать отчет</Button>
+        </CardContent></Card>
+        <Card><CardHeader><FileText className="w-5 h-5 text-green-600" /><CardTitle>Отчет по ученику</CardTitle><CardDescription>Статусы и подтверждённые баллы каждого достижения</CardDescription></CardHeader><CardContent className="space-y-4">
+          <div className="space-y-2"><Label htmlFor="report-student-class">Класс</Label><Select value={studentClass} onValueChange={(value) => { setStudentClass(value); setStudentId(''); }}><SelectTrigger id="report-student-class"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Все классы</SelectItem>{classes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-2"><Label htmlFor="report-student">Учащийся</Label><Select value={studentId} onValueChange={setStudentId}><SelectTrigger id="report-student"><SelectValue placeholder="Выберите учащегося" /></SelectTrigger><SelectContent>{filteredStudents.map((student) => <SelectItem key={student.id} value={String(student.id)}>{student.name}</SelectItem>)}</SelectContent></Select></div>
+          <Button onClick={handleGenerateStudentReport} className="w-full gap-2"><Download className="w-4 h-4" />Сформировать отчет</Button>
+        </CardContent></Card>
       </div>
-
-      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}><DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto"><DialogHeader><DialogTitle>{reportType === 'class' ? `Отчёт по ${reportData?.class} классу` : `Отчёт по ученику: ${reportData?.studentName}`}</DialogTitle><DialogDescription>Сформирован на основании актуальных данных backend</DialogDescription></DialogHeader><div className="space-y-4"><div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-3 rounded-md"><CheckCircle className="w-4 h-4" /><span>Отчёт успешно сформирован</span></div>{reportType === 'class' && reportData && <Table><TableHeader><TableRow><TableHead>Ученик</TableHead><TableHead className="text-center">Баллы</TableHead><TableHead className="text-center">Достижения</TableHead></TableRow></TableHeader><TableBody>{reportData.students.map((s: any) => <TableRow key={s.name}><TableCell>{s.name}</TableCell><TableCell className="text-center">{s.points}</TableCell><TableCell className="text-center">{s.achievements}</TableCell></TableRow>)}</TableBody></Table>}{reportType === 'student' && reportData && <Table><TableHeader><TableRow><TableHead>Достижение</TableHead><TableHead>Категория</TableHead><TableHead className="text-center">Баллы</TableHead><TableHead>Статус</TableHead><TableHead>Дата</TableHead></TableRow></TableHeader><TableBody>{reportData.achievements.map((a: any, i: number) => <TableRow key={a.achievement + i}><TableCell>{a.achievement}</TableCell><TableCell>{a.category}</TableCell><TableCell className="text-center">{a.points}</TableCell><TableCell>{statusLabel(a.status)}</TableCell><TableCell>{a.date}</TableCell></TableRow>)}</TableBody></Table>}<div className="grid grid-cols-1 sm:grid-cols-3 gap-2"><Button onClick={() => handleDownload('excel')} className="gap-2"><Download className="w-4 h-4" />Excel</Button><Button onClick={() => handleDownload('word')} variant="outline" className="gap-2"><Download className="w-4 h-4" />Word</Button><Button onClick={() => handleDownload('pdf')} variant="outline" className="gap-2"><Download className="w-4 h-4" />PDF</Button></div></div></DialogContent></Dialog>
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}><DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto"><DialogHeader><DialogTitle>{report?.title}</DialogTitle><DialogDescription>{report?.period} · По дате достижения, класс на дату события · {report?.generatedAt}</DialogDescription></DialogHeader>
+        {report && <><Table><TableHeader><TableRow>{report.headers.map((header) => <TableHead key={header}>{header}</TableHead>)}</TableRow></TableHeader><TableBody>{report.rows.length ? report.rows.map((row, index) => <TableRow key={index}>{row.map((cell, column) => <TableCell key={column}>{cell}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={report.headers.length}>За этот период данных нет.</TableCell></TableRow>}</TableBody></Table><div className="flex flex-wrap gap-2"><Button onClick={() => exportReport('csv')}>CSV</Button><Button variant="outline" onClick={() => exportReport('html')}>HTML</Button><Button variant="outline" onClick={() => exportReport('pdf')}>Печать / PDF</Button></div></>}
+      </DialogContent></Dialog>
     </div>
   );
 }

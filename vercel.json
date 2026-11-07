@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "buildCommand": "npm run build:vercel",
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "/api/index?__api_path=:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/index?__api_path=health"
+    }
+  ],
+  "functions": {
+    "api/index.mjs": {
+      "maxDuration": 60
+    }
+  },
+  "installCommand": "npm ci --include=dev"
+}

@@ -1,3 +1,4 @@
+import { formatDate } from '@/app/components/formatDate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
@@ -76,7 +77,7 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
           const list = studentAchievements.filter((a) => a.category === category);
           return (
           <TabsContent key={tab} value={tab} className="mt-6">
-            <Card><CardHeader><CardTitle>{title}</CardTitle></CardHeader><CardContent><div className="border rounded-md"><Table><TableHeader><TableRow className="bg-gray-50"><TableHead>№</TableHead><TableHead>Наименование</TableHead><TableHead>Уровень</TableHead><TableHead>Результат</TableHead><TableHead>Дата</TableHead><TableHead>Баллы</TableHead></TableRow></TableHeader><TableBody>{list.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-4 text-gray-500">Нет подтвержденных достижений</TableCell></TableRow> : list.map((a, i) => <TableRow key={a.id}><TableCell>{i + 1}</TableCell><TableCell>{a.achievementName}</TableCell><TableCell>{a.level}</TableCell><TableCell>{a.result}</TableCell><TableCell>{a.date}</TableCell><TableCell>{a.expectedPoints}</TableCell></TableRow>)}</TableBody></Table></div></CardContent></Card>
+            <Card><CardHeader><CardTitle>{title}</CardTitle></CardHeader><CardContent><div className="border rounded-md"><Table><TableHeader><TableRow className="bg-gray-50"><TableHead>№</TableHead><TableHead>Наименование</TableHead><TableHead>Уровень</TableHead><TableHead>Результат</TableHead><TableHead>Дата</TableHead><TableHead>Баллы</TableHead></TableRow></TableHeader><TableBody>{list.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-4 text-gray-500">Нет подтвержденных достижений</TableCell></TableRow> : list.map((a, i) => <TableRow key={a.id}><TableCell>{i + 1}</TableCell><TableCell>{a.achievementName}</TableCell><TableCell>{a.level}</TableCell><TableCell>{a.result}</TableCell><TableCell>{formatDate(a.date)}</TableCell><TableCell>{a.expectedPoints}</TableCell></TableRow>)}</TableBody></Table></div></CardContent></Card>
           </TabsContent>
         );})}
 
@@ -94,3 +95,4 @@ export function StudentAchievementsScreen({ studentId, onBack }: StudentAchievem
     </div>
   );
 }
+

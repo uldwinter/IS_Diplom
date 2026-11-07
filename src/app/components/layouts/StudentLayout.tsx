@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Home, Award, TrendingUp, User, Calendar, Newspaper, Users } from 'lucide-react';
+import { Home, Award, TrendingUp, User, Calendar, Newspaper, Users, Settings } from 'lucide-react';
 import { NotificationCenter } from '@/app/components/notifications/NotificationCenter';
 import { AppHeaderBrand } from '@/app/components/layouts/AppHeaderBrand';
 
@@ -19,6 +19,7 @@ export function StudentLayout({ children, currentScreen, onNavigate, onLogout, u
     { id: 'rating', label: 'Рейтинг', icon: TrendingUp },
     { id: 'portfolio', label: 'Моё портфолио', icon: User },
     { id: 'calendar', label: 'Календарь событий', icon: Calendar },
+    { id: 'settings', label: 'Настройки профиля', icon: Settings },
     { id: 'news', label: 'Новости', icon: Newspaper },
   ];
 
@@ -81,3 +82,4 @@ export function StudentLayout({ children, currentScreen, onNavigate, onLogout, u
     </div>
   );
 }
+

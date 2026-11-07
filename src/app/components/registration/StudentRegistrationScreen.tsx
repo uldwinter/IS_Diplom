@@ -1,3 +1,4 @@
+import { useMutation } from '@/app/components/useMutation';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -13,6 +14,7 @@ interface StudentRegistrationScreenProps {
 }
 
 export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistrationScreenProps) {
+  const { pending, execute } = useMutation();
   const { classCatalog } = useBackendState();
   const [formData, setFormData] = useState({
     lastName: '',
@@ -32,12 +34,13 @@ export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistration
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await submitStudentRegistrationWithFallback(formData);
+    if (!formData.class || !classCatalog.includes(formData.class)) return toast.error('Выберите класс из справочника');
+    if (formData.login.trim().length < 3) return toast.error('Логин должен содержать минимум 3 символа');
+    if (formData.password.length < 8) return toast.error('Пароль должен содержать минимум 8 символов');
+    if (!formData.birthDate || formData.birthDate > new Date().toISOString().slice(0, 10)) return toast.error('Укажите корректную дату рождения');
+    const result = await execute(() => submitStudentRegistrationWithFallback(formData));
 
-    if (!result.ok) {
-      toast.error('message' in result ? result.message : 'Не удалось отправить заявку');
-      return;
-    }
+    if (!result?.ok) return;
 
     setIsSubmitted(true);
     toast.success('Заявка на регистрацию отправлена!');
@@ -87,11 +90,11 @@ export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistration
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="login">Логин *</Label>
-                  <Input id="login" value={formData.login} onChange={(e) => handleChange('login', e.target.value)} required />
+                  <Input minLength={3} autoComplete="username" id="login" value={formData.login} onChange={(e) => handleChange('login', e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Пароль *</Label>
-                  <Input id="password" type="password" value={formData.password} onChange={(e) => handleChange('password', e.target.value)} required />
+                  <Input minLength={8} autoComplete="new-password" id="password" type="password" value={formData.password} onChange={(e) => handleChange('password', e.target.value)} required />
                 </div>
               </div>
             </div>
@@ -162,7 +165,8 @@ export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistration
             </div>
 
             <div className="pt-4 space-y-3">
-              <Button type="submit" className="w-full" size="lg">
+              {classCatalog.length === 0 && <p role="alert" className="text-sm text-red-600">Справочник классов недоступен. Проверьте подключение или обратитесь к администратору.</p>}
+              <Button disabled={pending || classCatalog.length === 0} type="submit" className="w-full" size="lg">
                 <UserPlus className="w-5 h-5 mr-2" />
                 Отправить заявку на регистрацию
               </Button>
@@ -176,3 +180,4 @@ export function StudentRegistrationScreen({ onBackToLogin }: StudentRegistration
     </div>
   );
 }
+

@@ -1,3 +1,5 @@
+import { formatDate } from '@/app/components/formatDate';
+import { useMutation } from '@/app/components/useMutation';
 import { useState } from 'react';
 import { useSections, Section } from './SectionsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
@@ -15,8 +17,9 @@ import { toast } from 'sonner';
 import { useBackendState } from '@/app/backend/store';
 
 export function CuratorSectionsScreen() {
-  const { sections, applications, updateApplicationStatus, addSection, deleteSection, getSectionMembersCount } = useSections();
-  const { users, sectionMembers } = useBackendState();
+  const { pending, execute } = useMutation();
+  const { sections, applications, members, updateApplicationStatus, addSection, deleteSection, getSectionMembersCount } = useSections();
+  const { users } = useBackendState();
   const [activeTab, setActiveTab] = useState('applications');
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   
@@ -34,7 +37,7 @@ export function CuratorSectionsScreen() {
   const pendingApplications = applications.filter(app => app.status === 'pending');
   const processedApplications = applications.filter(app => app.status !== 'pending');
 
-  const handleCreateSection = () => {
+  const handleCreateSection = async () => {
     if (!newSection.name || !newSection.teacher || !newSection.schedule || !newSection.location || !newSection.description) {
       toast.error('Заполните обязательные поля');
       return;
@@ -46,7 +49,7 @@ export function CuratorSectionsScreen() {
       return;
     }
 
-    addSection({
+    const result = await execute(() => addSection({
       name: newSection.name,
       category: newSection.category ?? 'sport',
       teacher: newSection.teacher,
@@ -54,17 +57,17 @@ export function CuratorSectionsScreen() {
       location: newSection.location,
       description: newSection.description,
       capacity,
-    });
+    }));
+    if (!result?.ok) return;
     setIsAddSectionOpen(false);
     toast.success('Секция успешно создана');
     setNewSection({ name: '', category: 'sport', teacher: '', schedule: '', location: '', description: '', capacity: 20 });
   };
 
-  const handleDeleteSection = (id: string) => {
-    if (confirm('Вы уверены? Все участники будут отчислены.')) {
-      deleteSection(id);
-      toast.success('Секция удалена');
-    }
+  const handleDeleteSection = async (id: string) => {
+    if (!window.confirm('Перенести секцию в архив? Запись в неё закроется, а состав и история сохранятся.')) return;
+    const result = await execute(() => deleteSection(id));
+    if (result?.ok) toast.success('Секция перенесена в архив');
   };
 
   // Analytics Data
@@ -132,25 +135,19 @@ export function CuratorSectionsScreen() {
                           <TableCell className="font-medium">{app.studentName}</TableCell>
                           <TableCell>{app.studentClass}</TableCell>
                           <TableCell>{section?.name || 'Удаленная секция'}</TableCell>
-                          <TableCell>{app.date}</TableCell>
+                          <TableCell>{formatDate(app.date)}</TableCell>
                           <TableCell className="text-right space-x-2">
-                            <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => {
-                              const result = updateApplicationStatus(app.id, 'approved');
-                              if (!result.ok) {
-                                toast.error(result.message ?? 'Не удалось обработать заявку');
-                                return;
-                              }
+                            <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50" disabled={pending} onClick={async () => {
+                              const result = await execute(() => updateApplicationStatus(app.id, 'approved'));
+                              if (!result?.ok) return;
                               toast.success(`Заявка ${app.studentName} принята`);
                             }}>
                               <Check className="w-4 h-4 mr-1" /> Принять
                             </Button>
-                            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => {
-                              const result = updateApplicationStatus(app.id, 'rejected');
-                              if (!result.ok) {
-                                toast.error(result.message ?? 'Не удалось обработать заявку');
-                                return;
-                              }
-                              toast.error(`Заявка ${app.studentName} отклонена`);
+                            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" disabled={pending} onClick={async () => {
+                              const result = await execute(() => updateApplicationStatus(app.id, 'rejected'));
+                              if (!result?.ok) return;
+                              toast.success(`Заявка ${app.studentName} отклонена`);
                             }}>
                               <X className="w-4 h-4 mr-1" /> Отклонить
                             </Button>
@@ -213,13 +210,13 @@ export function CuratorSectionsScreen() {
                       Участников: <strong>{getSectionMembersCount(section.id)}</strong> / {section.capacity}
                     </p>
                     <p className="text-xs mt-1 text-gray-500">
-                      Состав: {sectionMembers
+                      Состав: {members
                         .filter((m) => m.sectionId === section.id)
                         .map((m) => users.find((u) => u.id === m.studentId)?.name ?? `ID ${m.studentId}`)
                         .join(', ') || 'Пока нет участников'}
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDeleteSection(section.id)}>
+                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" disabled={pending} aria-label={`Архивировать секцию «${section.name}»`} onClick={() => handleDeleteSection(section.id)}>
                     <Trash2 className="w-5 h-5" />
                   </Button>
                 </CardContent>
@@ -326,10 +323,11 @@ export function CuratorSectionsScreen() {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleCreateSection}>Создать</Button>
+            <Button disabled={pending} onClick={handleCreateSection}>Создать</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+

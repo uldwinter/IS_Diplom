@@ -8,6 +8,8 @@ import { Award, TrendingUp, Calendar, Download, Share2, User, Layers } from 'luc
 import { useSections } from '@/app/components/sections/SectionsContext';
 import { getCurrentUser, useBackendState } from '@/app/backend/store';
 import { toast } from 'sonner';
+import { parseAchievementDate, toMonthKey } from '@/app/lib/academic';
+import { printableHtml, printReport, tableHtml } from '@/app/lib/export';
 
 export function StudentPortfolioScreen() {
   const { achievements } = useBackendState();
@@ -16,7 +18,7 @@ export function StudentPortfolioScreen() {
   const mySections = getStudentSections(currentUser?.id ?? 0);
   const myAchievements = achievements
     .filter((a) => a.studentUserId === currentUser?.id && a.status === 'approved')
-    .sort((a, b) => b.id - a.id);
+    .sort((a, b) => (parseAchievementDate(b.date)?.getTime() ?? 0) - (parseAchievementDate(a.date)?.getTime() ?? 0) || b.id - a.id);
 
   const [lastName = '', firstName = '', middleName = ''] = (currentUser?.name ?? '').split(' ');
   const totalPoints = myAchievements.reduce((sum, a) => sum + a.expectedPoints, 0);
@@ -35,12 +37,13 @@ export function StudentPortfolioScreen() {
     .filter((c) => c.count > 0);
 
   const monthlyMap = new Map<string, number>();
-  myAchievements.forEach((a) => {
-    const [day, month, year] = a.date.split('.');
-    const key = month && year ? `${month}.${year}` : a.date;
-    monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + a.expectedPoints);
+  myAchievements.forEach((achievement) => {
+    const date = parseAchievementDate(achievement.date);
+    if (!date) return;
+    const key = toMonthKey(date);
+    monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + achievement.expectedPoints);
   });
-  const monthlyProgress = Array.from(monthlyMap.entries()).map(([month, points]) => ({ month, points }));
+  const monthlyProgress = [...monthlyMap.entries()].sort((left, right) => left[0].localeCompare(right[0])).map(([month, points]) => ({ month: new Date(`${month}-01T00:00:00`).toLocaleDateString('ru-RU', { month: 'short', year: 'numeric' }), points }));
   const recentAchievements = myAchievements.slice(0, 10).map((a) => ({
     id: a.id,
     name: a.achievementName,
@@ -52,18 +55,21 @@ export function StudentPortfolioScreen() {
   }));
 
   const handleDownloadPdf = () => {
-    window.print();
-    toast.success('Окно печати открыто. Сохраните как PDF.');
+    const html = printableHtml(`Портфолио: ${currentUser?.name ?? 'Ученик'}`, `Подтверждённые достижения за все годы. Всего баллов: ${totalPoints}. Сформировано: ${new Date().toLocaleString('ru-RU')}.`,
+      tableHtml(['Дата события', 'Класс на дату события', 'Достижение', 'Категория', 'Уровень', 'Результат', 'Баллы'], myAchievements.map((event) => [event.date, event.studentClass, event.achievementName, event.category, event.level, event.result, event.expectedPoints])) +
+      '<h2>Секции и кружки</h2>' + tableHtml(['Секция', 'Преподаватель', 'Расписание'], mySections.map((section) => [section.name, section.teacher, section.schedule])));
+    if (!printReport(html)) return toast.error('Разрешите открытие окна печати');
+    toast.success('Открыта печатная версия портфолио. Выберите «Сохранить как PDF».');
   };
 
   const handleShare = async () => {
-    const text = `Портфолио: ${currentUser?.name ?? 'Ученик'}, баллы: ${totalPoints}`;
-    if (navigator.share) {
-      await navigator.share({ title: 'Портфолио учащегося', text });
-      return;
+    const text = `Портфолио: ${currentUser?.name ?? 'Ученик'}. Подтверждённых достижений: ${myAchievements.length}, баллов: ${totalPoints}.`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'Итоги портфолио учащегося', text });
+      else { await navigator.clipboard.writeText(text); toast.success('Итоги портфолио скопированы как текст'); }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error('Не удалось поделиться итогами портфолио');
     }
-    await navigator.clipboard.writeText(text);
-    toast.success('Ссылка/данные портфолио скопированы');
   };
 
   return (
@@ -108,11 +114,11 @@ export function StudentPortfolioScreen() {
             <div className="flex gap-2">
               <Button variant="outline" className="gap-2" onClick={handleShare}>
                 <Share2 className="w-4 h-4" />
-                Поделиться
+                Поделиться итогами
               </Button>
               <Button className="gap-2" onClick={handleDownloadPdf}>
                 <Download className="w-4 h-4" />
-                Скачать PDF
+                Печать / PDF
               </Button>
             </div>
           </div>
@@ -138,8 +144,8 @@ export function StudentPortfolioScreen() {
                   fill="#8884d8"
                   dataKey="points"
                 >
-                  {achievementsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {achievementsData.map((entry) => (
+                    <Cell key={entry.category} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -170,8 +176,8 @@ export function StudentPortfolioScreen() {
 
       {/* Детальная статистика по категориям */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {achievementsData.map((category, index) => (
-          <Card key={index}>
+        {achievementsData.map((category) => (
+          <Card key={category.category}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-lg" style={{ backgroundColor: `${category.color}20` }}>
@@ -222,10 +228,11 @@ export function StudentPortfolioScreen() {
       {/* Список достижений */}
       <Card>
         <CardHeader>
-          <CardTitle>Последние достижения</CardTitle>
+          <CardTitle>Последние подтверждённые достижения</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
+            {recentAchievements.length === 0 && <p className="text-gray-500">Подтверждённых достижений пока нет.</p>}
             {recentAchievements.map((achievement) => (
               <div 
                 key={achievement.id}
@@ -257,3 +264,4 @@ export function StudentPortfolioScreen() {
     </div>
   );
 }
+

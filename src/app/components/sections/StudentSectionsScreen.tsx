@@ -1,6 +1,6 @@
+import { useMutation } from '@/app/components/useMutation';
 import { useState } from 'react';
 import { useSections, Section } from './SectionsContext';
-import { useApp } from '@/app/lib/AppContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
@@ -11,8 +11,8 @@ import { toast } from 'sonner';
 import { getCurrentUser } from '@/app/backend/store';
 
 export function StudentSectionsScreen() {
+  const { pending, execute } = useMutation();
   const { sections, applications, getStudentSections, addApplication } = useSections();
-  const { currentUser } = useApp();
   const [activeTab, setActiveTab] = useState('all');
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -38,24 +38,21 @@ export function StudentSectionsScreen() {
     return null;
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!selectedSection) return;
     if (!currentStudentId) {
       toast.error('Не удалось определить текущего пользователя');
       return;
     }
     
-    const result = addApplication({
+    const result = await execute(() => addApplication({
       studentId: currentStudentId,
       studentName: currentStudentName,
       studentClass: currentStudentClass,
       sectionId: selectedSection.id,
-    });
+    }));
 
-    if (!result.ok) {
-      toast.error(result.message ?? 'Не удалось отправить заявку');
-      return;
-    }
+    if (!result?.ok) return;
 
     toast.success(`Заявка в секцию "${selectedSection.name}" отправлена`);
     setIsDialogOpen(false);
@@ -176,7 +173,7 @@ export function StudentSectionsScreen() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Отмена</Button>
-            <Button onClick={handleApply}>Подтвердить запись</Button>
+            <Button disabled={pending} onClick={handleApply}>Подтвердить запись</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

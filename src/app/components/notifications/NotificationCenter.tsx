@@ -1,3 +1,5 @@
+import { formatDate } from '@/app/components/formatDate';
+import { useMutation } from '@/app/components/useMutation';
 import { useMemo, useState } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
@@ -13,6 +15,7 @@ interface NotificationCenterProps {
 }
 
 export function NotificationCenter({ userRole, userId }: NotificationCenterProps) {
+  const { pending, execute } = useMutation();
   const { notifications } = useBackendState();
   const [open, setOpen] = useState(false);
 
@@ -36,13 +39,13 @@ export function NotificationCenter({ userRole, userId }: NotificationCenterProps
             <p className="text-sm font-medium text-gray-900">{notification.title}</p>
             <div className="flex items-center gap-1">
               {!notification.read && <div className="w-2 h-2 bg-blue-600 rounded-full" />}
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => deleteNotification(notification.id)}><X className="w-3 h-3" /></Button>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={pending} onClick={() => execute(() => deleteNotification(notification.id))}><X className="w-3 h-3" /></Button>
             </div>
           </div>
           <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-gray-500">{notification.timestamp}</span>
-            {!notification.read && <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => markNotificationRead(notification.id)}>Отметить прочитанным</Button>}
+            <span className="text-xs text-gray-500">{formatDate(notification.timestamp, true)}</span>
+            {!notification.read && <Button variant="ghost" size="sm" className="text-xs h-6" disabled={pending} onClick={() => execute(() => markNotificationRead(notification.id))}>Отметить прочитанным</Button>}
           </div>
         </div>
       </div>
@@ -60,7 +63,7 @@ export function NotificationCenter({ userRole, userId }: NotificationCenterProps
       <PopoverContent className="w-96 p-0" align="end">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Уведомления</h3>
-          {unreadCount > 0 && <Button variant="ghost" size="sm" className="text-xs" onClick={() => markAllNotificationsRead(userRole, userId)}>Отметить все прочитанными</Button>}
+          {unreadCount > 0 && <Button variant="ghost" size="sm" className="text-xs" disabled={pending} onClick={() => execute(() => markAllNotificationsRead(userRole, userId))}>Отметить все прочитанными</Button>}
         </div>
 
         <Tabs defaultValue="unread" className="w-full">
@@ -75,3 +78,4 @@ export function NotificationCenter({ userRole, userId }: NotificationCenterProps
     </Popover>
   );
 }
+

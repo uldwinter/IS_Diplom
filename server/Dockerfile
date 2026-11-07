@@ -1,9 +1,10 @@
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 COPY . .
 EXPOSE 8080
-CMD ["sh", "-c", "npm run migrate && npm run seed && npm run start"]
+CMD ["npm", "start"]
+

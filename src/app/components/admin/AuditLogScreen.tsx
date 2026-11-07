@@ -1,3 +1,5 @@
+import { toCsv, downloadText } from '@/app/lib/export';
+import { formatDate } from '@/app/components/formatDate';
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
@@ -44,18 +46,11 @@ export function AuditLogScreen() {
   });
 
   const handleExport = () => {
-    // Build CSV
-    const header = 'Дата и время;Пользователь;Роль;Действие;Раздел;Детали\n';
-    const rows = filteredLogs.map(l =>
-      `${l.timestamp};${l.user};${l.userRole};${l.action};${l.entity};"${l.details}"`
-    ).join('\n');
-    const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audit_log_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const csv = toCsv([
+      ['Дата и время', 'Пользователь', 'Роль', 'Действие', 'Раздел', 'Детали'],
+      ...filteredLogs.map(log => [formatDate(log.timestamp, true), log.user, log.userRole, log.action, log.entity, log.details]),
+    ]);
+    downloadText('\uFEFF' + csv, `audit-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
     toast.success(`Экспортировано ${filteredLogs.length} записей журнала`);
   };
 
@@ -213,7 +208,7 @@ export function AuditLogScreen() {
                 ) : (
                   filteredLogs.map((log) => (
                     <TableRow key={log.id} className="hover:bg-gray-50">
-                      <TableCell className="text-sm text-gray-600">{String(log.timestamp ?? '')}</TableCell>
+                      <TableCell className="text-sm text-gray-600">{formatDate(log.timestamp, true)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getRoleIcon(log.userRole)}
@@ -239,3 +234,4 @@ export function AuditLogScreen() {
     </div>
   );
 }
+

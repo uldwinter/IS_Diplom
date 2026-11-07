@@ -1,11 +1,6 @@
-import fs from 'fs';
-
-const path = 'server/contracts/openapi.yaml';
-const content = fs.readFileSync(path, 'utf8');
-const required = ['/auth/login', '/auth/refresh', '/users', '/achievements', '/registrations'];
-const missing = required.filter((r) => !content.includes(r));
-if (missing.length) {
-  console.error('Missing API routes in contract:', missing.join(', '));
-  process.exit(1);
-}
-console.log('OpenAPI contract smoke-check passed');
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const contract = fs.readFileSync('server/contracts/openapi.yaml', 'utf8');
+const routes = ['/health', '/bootstrap', '/auth/login', '/auth/logout', '/auth/me', '/state', '/commands', '/registrations', '/documents', '/documents/{id}', '/backup', '/restore'];
+for (const route of routes) assert.ok(contract.includes(`${route}:`), `Missing API route in contract: ${route}`);
+console.log('OpenAPI routes present');

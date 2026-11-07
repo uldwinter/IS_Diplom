@@ -39,10 +39,10 @@ interface SectionsContextType {
   sections: Section[];
   applications: SectionApplication[];
   members: SectionMember[];
-  addApplication: (app: Omit<SectionApplication, 'id' | 'status' | 'date'>) => { ok: boolean; message?: string };
-  updateApplicationStatus: (appId: string, status: 'approved' | 'rejected') => { ok: boolean; message?: string };
-  addSection: (section: Omit<Section, 'id'>) => void;
-  deleteSection: (id: string) => void;
+  addApplication: (app: Omit<SectionApplication, 'id' | 'status' | 'date'>) => Promise<{ ok: boolean; message?: string }>;
+  updateApplicationStatus: (appId: string, status: 'approved' | 'rejected') => Promise<{ ok: boolean; message?: string }>;
+  addSection: (section: Omit<Section, 'id'>) => Promise<{ ok: boolean; message?: string }>;
+  deleteSection: (id: string) => Promise<{ ok: boolean; message?: string }>;
   getStudentSections: (studentId: number) => Section[];
   getSectionMembersCount: (sectionId: string) => number;
 }
@@ -51,11 +51,13 @@ const SectionsContext = createContext<SectionsContextType | undefined>(undefined
 
 export function SectionsProvider({ children }: { children: React.ReactNode }) {
   const { sections, sectionApplications, sectionMembers } = useBackendState();
+  const activeSections = sections.filter(section => !('archivedAt' in section && section.archivedAt));
+  const activeIds = new Set(activeSections.map(section => section.id));
 
   const value: SectionsContextType = {
-    sections,
-    applications: sectionApplications,
-    members: sectionMembers,
+    sections: activeSections,
+    applications: sectionApplications.filter(application => activeIds.has(application.sectionId)),
+    members: sectionMembers.filter(member => activeIds.has(member.sectionId)),
     addApplication: addSectionApplication,
     updateApplicationStatus: updateSectionApplicationStatus,
     addSection: addSectionInStore,
@@ -74,3 +76,4 @@ export function useSections() {
   }
   return context;
 }
+

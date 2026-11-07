@@ -1,3 +1,4 @@
+import { useMutation } from '@/app/components/useMutation';
 import { useState } from 'react';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -12,20 +13,15 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
+  const { pending, execute } = useMutation();
   const [loginValue, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = login(loginValue, password);
+    const result = await execute(() => login(loginValue.trim(), password));
 
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
+    if (!result?.ok || !result.user) return;
 
     toast.success(`Вход выполнен: ${result.user.name}`);
     onLogin(result.user);
@@ -45,6 +41,7 @@ export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
             <div className="space-y-2">
               <Label htmlFor="login" className="text-sm font-medium">Логин</Label>
               <Input
+                required autoComplete="username"
                 id="login"
                 type="text"
                 placeholder="Введите логин"
@@ -56,6 +53,7 @@ export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">Пароль</Label>
               <Input
+                required autoComplete="current-password"
                 id="password"
                 type="password"
                 placeholder="Введите пароль"
@@ -64,7 +62,7 @@ export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
                 className="bg-white h-11"
               />
             </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-11 text-base mt-6">
+            <Button disabled={pending} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-11 text-base mt-6">
               Войти
             </Button>
             <Button type="button" variant="outline" onClick={onOpenRegistration} className="w-full h-11 text-base">
@@ -79,3 +77,4 @@ export function LoginScreen({ onLogin, onOpenRegistration }: LoginScreenProps) {
     </div>
   );
 }
+

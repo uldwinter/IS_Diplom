@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useMutation } from '@/app/components/useMutation';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/app/components/ui/dialog';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
@@ -7,9 +8,9 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { useBackendState } from '@/app/backend/store';
+import { AchievementRecord, uploadDocument, useBackendState } from '@/app/backend/store';
 
-interface NewAchievement {
+export interface NewAchievement {
   name: string;
   category: string;
   level: string;
@@ -23,10 +24,13 @@ interface NewAchievement {
 interface AddAchievementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd?: (achievement: NewAchievement) => void;
+  onAdd: (achievement: NewAchievement) => Promise<{ ok: boolean; message?: string }>;
+  initialAchievement?: AchievementRecord | null;
 }
 
-export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchievementDialogProps) {
+export function AddAchievementDialog({ open, onOpenChange, onAdd, initialAchievement }: AddAchievementDialogProps) {
+  const { pending, execute } = useMutation();
+  const [uploading, setUploading] = useState(false);
   const { scoringRules } = useBackendState();
   const [files, setFiles] = useState<Array<{ name: string; payload: string }>>([]);
   const [category, setCategory] = useState('');
@@ -38,27 +42,29 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
 
   const calculatePoints = () => {
     if (!category || !level) return 0;
-    return scoringRules[category]?.[level] || 15;
+    return scoringRules[category]?.[level] ?? 0;
   };
 
-  const fileToPayload = (file: File) =>
-    new Promise<{ name: string; payload: string }>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve({ name: file.name, payload: `upload::${file.name}::${String(reader.result ?? '')}` });
-      reader.onerror = () => reject(new Error(`Не удалось прочитать файл: ${file.name}`));
-      reader.readAsDataURL(file);
-    });
-
   const handleAddFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files ?? []);
+    const input = event.currentTarget;
+    const selected = Array.from(input.files ?? []);
     if (selected.length === 0) return;
+    if (files.length + selected.length > 10) { toast.error('Можно приложить не более 10 документов'); input.value = ''; return; }
+    if (selected.some(file => !['application/pdf', 'image/jpeg', 'image/png'].includes(file.type) || !file.size || file.size > 4 * 1024 * 1024)) {
+      toast.error('Допустимы PDF, JPG и PNG размером до 4 МБ каждый'); input.value = ''; return;
+    }
+    setUploading(true);
     try {
-      const loaded = await Promise.all(selected.map(fileToPayload));
-      setFiles((prev) => [...prev, ...loaded]);
+      for (const file of selected) {
+        const uploaded = await uploadDocument(file);
+        if (!uploaded.ok || !uploaded.document) throw new Error(uploaded.message || 'Не удалось загрузить документ');
+        setFiles(prev => [...prev, { name: file.name, payload: uploaded.document! }]);
+      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Ошибка загрузки файла');
+      toast.error(error instanceof Error ? error.message : 'Ошибка загрузки документа');
     } finally {
-      event.target.value = '';
+      setUploading(false);
+      input.value = '';
     }
   };
 
@@ -76,37 +82,43 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
     setFiles([]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!open) return;
+    if (!initialAchievement) { resetForm(); return; }
+    setCategory(initialAchievement.category);
+    setAchievementName(initialAchievement.achievementName);
+    setLevel(initialAchievement.level);
+    setResult(initialAchievement.result);
+    const raw = initialAchievement.date;
+    setDate(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : raw.split('.').reverse().join('-'));
+    setDescription(initialAchievement.description || '');
+    setFiles(initialAchievement.documents.filter(doc => doc.startsWith('document::')).map(doc => ({
+      name: (() => { try { return decodeURIComponent(doc.split('::')[2] || 'Документ'); } catch { return 'Документ'; } })(), payload: doc,
+    })));
+  }, [open, initialAchievement?.id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!category) { toast.error('Выберите категорию достижения'); return; }
-    if (!achievementName.trim()) { toast.error('Введите наименование достижения'); return; }
-    if (!date) { toast.error('Укажите дату достижения'); return; }
-
-    const points = calculatePoints();
-    const dateFormatted = new Date(date).toLocaleDateString('ru-RU');
-
-    const newAchievement: NewAchievement = {
-      name: achievementName,
-      category,
-      level: level || '-',
-      result: result || '-',
-      points,
-      date: dateFormatted,
-      description: description || undefined,
-      documents: files.length ? files.map((f) => f.payload) : undefined,
-    };
-
-    if (onAdd) {
-      onAdd(newAchievement);
-    }
-
-    toast.success('Заявка отправлена на проверку куратору!');
+    if (uploading || pending) return;
+    if (!category) return toast.error('Выберите категорию достижения');
+    if (!achievementName.trim()) return toast.error('Введите наименование достижения');
+    if (!date || date > new Date().toISOString().slice(0, 10)) return toast.error('Укажите прошедшую дату достижения');
+    if (!level || calculatePoints() <= 0) return toast.error('Выберите уровень с утверждённым правилом начисления');
+    if (!result.trim()) return toast.error('Укажите результат участия');
+    if (!files.length) return toast.error('Прикрепите подтверждающий документ');
+    const response = await execute(() => onAdd({
+      name: achievementName.trim(), category, level, result: result.trim(),
+      points: calculatePoints(), date, description: description.trim() || undefined,
+      documents: files.map(file => file.payload),
+    }));
+    if (!response?.ok) return;
+    toast.success('Заявка отправлена на проверку куратору');
     resetForm();
     onOpenChange(false);
   };
 
   const handleClose = () => {
+    if (pending || uploading) return;
     resetForm();
     onOpenChange(false);
   };
@@ -115,7 +127,7 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Добавить достижение</DialogTitle>
+          <DialogTitle>{initialAchievement ? 'Исправить достижение' : 'Добавить достижение'}</DialogTitle>
           <DialogDescription>
             Заполните информацию о достижении и прикрепите подтверждающие документы
           </DialogDescription>
@@ -183,6 +195,7 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
             <Label htmlFor="date">Дата достижения *</Label>
             <Input
               id="date"
+              max={new Date().toISOString().slice(0, 10)}
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -215,9 +228,10 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
               <p className="text-sm text-gray-600 mb-2">
                 Загрузите грамоты, сертификаты, дипломы
               </p>
-              <Input type="file" multiple onChange={handleAddFile} />
+              <Input type="file" accept="application/pdf,image/jpeg,image/png" multiple disabled={uploading || pending} onChange={handleAddFile} />
+              {uploading && <p role="status">Документы загружаются…</p>}
               <p className="text-xs text-gray-500 mt-2">
-                Поддерживаемые форматы: PDF, JPG, PNG (макс. 10 МБ)
+                Поддерживаемые форматы: PDF, JPG, PNG (макс. 4 МБ)
               </p>
             </div>
 
@@ -241,10 +255,10 @@ export function AddAchievementDialog({ open, onOpenChange, onAdd }: AddAchieveme
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button disabled={pending || uploading} type="button" variant="outline" onClick={handleClose}>
               Отмена
             </Button>
-            <Button type="submit" className="bg-green-600 hover:bg-green-700">
+            <Button disabled={pending || uploading} type="submit" className="bg-green-600 hover:bg-green-700">
               Отправить на проверку
             </Button>
           </DialogFooter>
